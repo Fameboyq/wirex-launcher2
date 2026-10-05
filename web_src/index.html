@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wirex Client Launcher</title>
+  <meta name="description" content="Wirex Client Launcher - 1.21.4" />
+  <meta name="robots" content="noindex, nofollow" />
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      console.error("Launcher JS Error:", msg, url, line, error);
+    };
+  </script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- WebView2 Stub API -->
+  <script src="webview_stub.js"></script>
+  <!-- Application Styles -->
+  <link rel="stylesheet" href="bootstrap-icons.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <!-- Main Application Entrypoint -->
+  <script src="vendor.js"></script>
+  <script src="css_mappings.js"></script>
+  <!-- Application Modules -->
+  <script src="src/imports.js"></script>
+  <script src="src/constants.js"></script>
+  <script src="src/models.js"></script>
+  <script src="src/controller.js"></script>
+  <script src="src/components.js"></script>
+  <script src="src/views.js"></script>
+  <script src="src/main.js"></script>
+</body>
+
+</html>
