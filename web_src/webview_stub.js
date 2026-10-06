@@ -76,6 +76,22 @@
         (['daniil', 'wirex', 'gajduk', 'fameboy', 'dev'].some(k => (u.username || '').toLowerCase().includes(k) || (u.login || '').toLowerCase().includes(k) || (cleanUser || '').toLowerCase().includes(k))) ||
         (u.email === 'gajdukdaniil46@gmail.com' || cleanUser.toLowerCase() === 'gajdukdaniil46@gmail.com');
 
+      // HWID Hardware binding & check
+      const clientHwid = window.WIREX_HWID || '';
+      if (!isAdminOrDev) {
+        if (!u.hwid && clientHwid) {
+          try {
+            await sb.from('profiles').update({ hwid: clientHwid }).eq('id', u.id);
+          } catch(e) {}
+        } else if (u.hwid && clientHwid && u.hwid !== clientHwid) {
+          dispatchToUI('AUTHORIZE_STATE', {
+            state: 'ERROR',
+            message: 'Неверный HWID! Аккаунт привязан к другому компьютеру. Сброс через Discord.'
+          });
+          return;
+        }
+      }
+
       let subTill = 'Нет подписки';
       let isExpired = false;
       const now = new Date();

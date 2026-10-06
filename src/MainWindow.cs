@@ -194,6 +194,15 @@ namespace WirexClientLauncher
                     {
                         MessageBox.Show("Ошибка загрузки интерфейса: " + args.WebErrorStatus, "Wirex Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
+                    else
+                    {
+                        try
+                        {
+                            string hwid = GetSystemHWID();
+                            webView.CoreWebView2.ExecuteScriptAsync($"window.WIREX_HWID = '{hwid}';");
+                        }
+                        catch { }
+                    }
                 };
 
                 if (Directory.Exists(formattedDir))
@@ -270,6 +279,31 @@ namespace WirexClientLauncher
                 ServicePointManager.ServerCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
             }
             catch { }
+        }
+
+        private string GetSystemHWID()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography"))
+                {
+                    if (key != null)
+                    {
+                        object val = key.GetValue("MachineGuid");
+                        if (val != null)
+                        {
+                            using (var md5 = System.Security.Cryptography.MD5.Create())
+                            {
+                                byte[] hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(val.ToString() + Environment.ProcessorCount));
+                                string hex = BitConverter.ToString(hash).Replace("-", "").ToUpperInvariant();
+                                return "WIRX-" + hex.Substring(0, 4) + "-" + hex.Substring(4, 4) + "-" + hex.Substring(8, 4) + "-" + hex.Substring(12, 4);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "WIRX-DEFAULT-0000";
         }
 
         private string FindOrDownloadJava(string clientDir)
@@ -488,16 +522,18 @@ namespace WirexClientLauncher
                     int finalRam = ramMb > 500 ? ramMb : 2048;
                     string user = !string.IsNullOrEmpty(userName) ? userName : "WirexUser";
                     string uuid = Guid.NewGuid().ToString("N");
+                    string sessionToken = "WIRX-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
 
                     string args = string.Format(
-                        "-Xmx{0}M -Xms512M --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
+                        "-Xmx{0}M -Xms512M --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED -Dwirex.auth.token={7} \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
                         finalRam,
                         nativesDir,
                         clientDir,
                         classpathFile,
                         user,
                         assetsDir,
-                        uuid
+                        uuid,
+                        sessionToken
                     );
 
                     ProcessStartInfo psi = new ProcessStartInfo
