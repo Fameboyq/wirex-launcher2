@@ -27,12 +27,7 @@ namespace WirexClientLauncher
                 if (System.Diagnostics.Debugger.IsAttached)
                     Environment.Exit(0);
 
-                bool isDebugger = false;
-                CheckRemoteDebuggerPresent(System.Diagnostics.Process.GetCurrentProcess().Handle, ref isDebugger);
-                if (isDebugger)
-                    Environment.Exit(0);
-
-                string[] bad = { "dnspy", "ilspy", "de4dot", "procmon", "x64dbg", "x32dbg", "ida64", "ida", "httpdebugger", "charles", "wireshark" };
+                string[] bad = { "dnspy", "ilspy", "de4dot", "x64dbg", "x32dbg", "ida64", "ida", "httpdebugger", "wireshark" };
                 foreach (var p in System.Diagnostics.Process.GetProcesses())
                 {
                     try
@@ -40,7 +35,7 @@ namespace WirexClientLauncher
                         string pName = p.ProcessName.ToLowerInvariant();
                         foreach (string b in bad)
                         {
-                            if (pName.Contains(b))
+                            if (pName == b || pName == b + ".exe")
                                 Environment.Exit(0);
                         }
                     }
