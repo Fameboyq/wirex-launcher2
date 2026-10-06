@@ -17,9 +17,43 @@ namespace WirexClientLauncher
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr LoadLibrary(string lpLibFileName);
 
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        private static extern bool CheckRemoteDebuggerPresent(IntPtr hProcess, ref bool isDebuggerPresent);
+
+        private static void AntiAnalysis()
+        {
+            try
+            {
+                if (System.Diagnostics.Debugger.IsAttached)
+                    Environment.Exit(0);
+
+                bool isDebugger = false;
+                CheckRemoteDebuggerPresent(System.Diagnostics.Process.GetCurrentProcess().Handle, ref isDebugger);
+                if (isDebugger)
+                    Environment.Exit(0);
+
+                string[] bad = { "dnspy", "ilspy", "de4dot", "procmon", "x64dbg", "x32dbg", "ida64", "ida", "httpdebugger", "charles", "wireshark" };
+                foreach (var p in System.Diagnostics.Process.GetProcesses())
+                {
+                    try
+                    {
+                        string pName = p.ProcessName.ToLowerInvariant();
+                        foreach (string b in bad)
+                        {
+                            if (pName.Contains(b))
+                                Environment.Exit(0);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
         [STAThread]
         public static void Main()
         {
+            AntiAnalysis();
             try
             {
                 ServicePointManager.Expect100Continue = true;

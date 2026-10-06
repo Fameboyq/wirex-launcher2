@@ -39,96 +39,84 @@
       dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите логин или почту' });
       return;
     }
-
-    const sb = getSupabase();
-    if (sb) {
-      try {
-        const { data: users, error } = await sb
-          .from('profiles')
-          .select('*')
-          .or(`login.ilike."${cleanUser}",username.ilike."${cleanUser}",email.ilike."${cleanUser}"`);
-
-        if (!error && users && users.length > 0) {
-          const u = users[0];
-          if (u.password && cleanPass && u.password !== cleanPass) {
-            dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный пароль' });
-            return;
-          }
-
-          const isAdminOrDev = (u.role === 'Admin' || u.role === 'Dev' || u.subscription === 'Dev' || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever') ||
-            (['test', 'admin', 'daniil', 'wirex', 'gajduk', 'fameboy', 'dev'].some(k => (u.username || '').toLowerCase().includes(k) || (u.login || '').toLowerCase().includes(k) || (cleanUser || '').toLowerCase().includes(k))) ||
-            (u.email === 'gajdukdaniil46@gmail.com' || cleanUser.toLowerCase() === 'gajdukdaniil46@gmail.com');
-
-          let subTill = 'Нет подписки';
-          const now = new Date();
-
-          if (isAdminOrDev || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever') {
-            subTill = '∞ Навсегда';
-          } else if (u.subscription_expires_at) {
-            try {
-              const d = new Date(u.subscription_expires_at);
-              if (d < now) {
-                subTill = 'Истекла';
-              } else {
-                subTill = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-              }
-            } catch (e) {
-              subTill = u.subscription_expires_at;
-            }
-          } else if (u.subscription && u.subscription !== 'Истекла' && u.subscription !== 'None') {
-            subTill = u.subscription;
-          }
-
-          dispatchToUI('AUTHORIZE_STATE', {
-            state: 'OK',
-            till: subTill,
-            username: u.username || u.login || cleanUser,
-            id: u.id || 6009,
-            priority: 0,
-            versions: 'wirex_1214:Stable 1.21.4:0;'
-          });
-          return;
-        } else {
-          // Auto-registration on Enter
-          const isDevNew = ['test', 'admin', 'daniil', 'wirex', 'gajduk', 'fameboy', 'dev'].some(k => cleanUser.toLowerCase().includes(k)) || cleanUser.toLowerCase() === 'gajdukdaniil46@gmail.com';
-          const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('usr_' + Date.now());
-          const expDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-          
-          await sb.from('profiles').insert([{
-            id: newId,
-            login: cleanUser,
-            username: cleanUser,
-            password: cleanPass,
-            role: isDevNew ? 'Dev' : 'Member',
-            subscription: isDevNew ? 'Навсегда' : 'Активна',
-            subscription_expires_at: isDevNew ? null : expDate,
-            created_at: new Date().toISOString()
-          }]);
-
-          dispatchToUI('AUTHORIZE_STATE', {
-            state: 'OK',
-            till: isDevNew ? '∞ Навсегда' : '30 дней',
-            username: cleanUser,
-            id: newId,
-            priority: 0,
-            versions: 'wirex_1214:Stable 1.21.4:0;'
-          });
-          return;
-        }
-      } catch (err) {
-        console.warn('Supabase auth fallback:', err);
-      }
+    if (!cleanPass) {
+      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите пароль' });
+      return;
     }
 
-    // Fallback if offline
-    dispatchToUI('AUTHORIZE_STATE', {
-      state: 'OK',
-      till: '14.10.2026',
-      username: cleanUser,
-      id: 6009,
-      priority: 0,
-      versions: 'wirex_1214:Stable 1.21.4:0;'
-    });
+    const sb = getSupabase();
+    if (!sb) {
+      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ошибка сети. Нет связи с сервером.' });
+      return;
+    }
+
+    try {
+      const { data: users, error } = await sb
+        .from('profiles')
+        .select('*')
+        .or(`login.ilike."${cleanUser}",username.ilike."${cleanUser}",email.ilike."${cleanUser}"`);
+
+      if (error) {
+        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ошибка связи с базой данных' });
+        return;
+      }
+
+      if (!users || users.length === 0) {
+        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Пользователь не найден. Доступ только по подписке.' });
+        return;
+      }
+
+      const u = users[0];
+      if (u.password && u.password !== cleanPass) {
+        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный пароль' });
+        return;
+      }
+
+      const isAdminOrDev = (u.role === 'Admin' || u.role === 'Dev' || u.subscription === 'Dev' || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever') ||
+        (['daniil', 'wirex', 'gajduk', 'fameboy', 'dev'].some(k => (u.username || '').toLowerCase().includes(k) || (u.login || '').toLowerCase().includes(k) || (cleanUser || '').toLowerCase().includes(k))) ||
+        (u.email === 'gajdukdaniil46@gmail.com' || cleanUser.toLowerCase() === 'gajdukdaniil46@gmail.com');
+
+      let subTill = 'Нет подписки';
+      let isExpired = false;
+      const now = new Date();
+
+      if (isAdminOrDev || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever') {
+        subTill = '∞ Навсегда';
+      } else if (u.subscription_expires_at) {
+        try {
+          const d = new Date(u.subscription_expires_at);
+          if (d < now) {
+            subTill = 'Истекла';
+            isExpired = true;
+          } else {
+            subTill = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+          }
+        } catch (e) {
+          subTill = u.subscription_expires_at;
+        }
+      } else if (u.subscription && u.subscription !== 'Истекла' && u.subscription !== 'None') {
+        subTill = u.subscription;
+      } else {
+        isExpired = true;
+      }
+
+      if (isExpired || subTill === 'Истекла' || subTill === 'Нет подписки') {
+        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ваша подписка истекла или не активна.' });
+        return;
+      }
+
+      dispatchToUI('AUTHORIZE_STATE', {
+        state: 'OK',
+        till: subTill,
+        username: u.username || u.login || cleanUser,
+        id: u.id || 6009,
+        priority: 0,
+        versions: 'wirex_1214:Stable 1.21.4:0;'
+      });
+    } catch (err) {
+      console.warn('Auth error:', err);
+      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ошибка сети. Проверьте подключение к интернету.' });
+    }
   }
 
   function handleStartClient(payload) {

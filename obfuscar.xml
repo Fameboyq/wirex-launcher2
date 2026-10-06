@@ -1,0 +1,16 @@
+<?xml version='1.0'?>
+<Obfuscator>
+  <Var name="InPath" value="C:\Users\kanad\wirex-launcher2" />
+  <Var name="OutPath" value="C:\Users\kanad\wirex-launcher2\obfuscated" />
+  <Var name="HideStrings" value="true" />
+  <Var name="RenameFields" value="true" />
+  <Var name="RenameProperties" value="true" />
+  <Var name="RenameEvents" value="true" />
+  <Var name="SuppressIldasm" value="true" />
+  <Var name="KeepPublicApi" value="false" />
+  <Var name="HidePrivateApi" value="true" />
+  <Var name="ReuseNames" value="true" />
+  <Var name="UseUnicodeNames" value="true" />
+
+  <Module file="$(InPath)\WirexLauncher.exe" />
+</Obfuscator>

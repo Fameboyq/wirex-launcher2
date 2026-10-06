@@ -247,9 +247,8 @@ const AuthorizationView = () => {
   });
 };
 
-// --- Home / Dashboard View ---
+// --- // --- Home / Dashboard View ---
 const HomeView = () => {
-  const [selectedVersion, setSelectedVersion] = React.useState(null);
   const [isLaunching, setIsLaunching] = React.useState(false);
   const [loadPercent, setLoadPercent] = React.useState(0);
   const [loadText, setLoadText] = React.useState("");
@@ -265,11 +264,30 @@ const HomeView = () => {
         },
       ];
 
+  React.useEffect(() => {
+    const onPreloader = (text, percent) => {
+      setLoadText(text);
+      setLoadPercent(percent);
+      if (percent >= 100) {
+        setTimeout(() => setIsLaunching(false), 3000);
+      }
+    };
+    LauncherController.subscribePreloader(onPreloader);
+    return () => LauncherController.unsubscribePreloader(onPreloader);
+  }, []);
+
   const handleLaunchGame = (version) => {
     if (isLaunching) return;
+
+    const sub = LauncherController.user?.subtill;
+    if (sub === "Истекла" || sub === "Нет подписки") {
+      LauncherController.notification("У вас нет активной подписки!");
+      return;
+    }
+
     setIsLaunching(true);
-    setLoadPercent(15);
-    setLoadText("Проверка целостности файлов клиента...");
+    setLoadPercent(10);
+    setLoadText("Запуск Minecraft 1.21.4 (Wirex)...");
 
     const vId = (version && version.id) ? version.id : "wirex_1214";
     LauncherController.starterInformation = new ClientType(
@@ -278,168 +296,8 @@ const HomeView = () => {
       vId
     );
 
-    setTimeout(() => {
-      setLoadPercent(45);
-      setLoadText("Синхронизация Wirex Client и Fabric API...");
-    }, 450);
-
-    setTimeout(() => {
-      setLoadPercent(75);
-      setLoadText("Подготовка Java 21 и библиотек...");
-    }, 950);
-
-    setTimeout(() => {
-      setLoadPercent(95);
-      setLoadText("Запуск Minecraft 1.21.4 (Wirex Client)...");
-      LauncherController.startClient();
-    }, 1500);
-
-    setTimeout(() => {
-      setLoadPercent(100);
-      setLoadText("Игра запущена! Приятной игры.");
-    }, 2400);
-
-    setTimeout(() => {
-      setIsLaunching(false);
-      LauncherController.starterInformation = null;
-    }, 4500);
+    LauncherController.startClient();
   };
-
-  const currentVersion = selectedVersion || versionsList[0];
-
-  if (selectedVersion) {
-    const versionImg = VERSION_IMAGE_PATHS[0] || "assets/asset_3.png";
-    return JSX.jsx("div", {
-      className: "client-launch-page",
-      children: JSX.jsxs(React.Fragment, {
-        children: [
-          JSX.jsxs("div", {
-            className: "client-launch-back-btn",
-            onClick: () => {
-              if (!isLaunching) setSelectedVersion(null);
-            },
-            children: [
-              JSX.jsx("i", { className: "bi bi-chevron-left" }),
-              "Назад",
-            ],
-          }),
-          JSX.jsxs("div", {
-            className: "client-main-card",
-            children: [
-              JSX.jsxs("div", {
-                className: "client-card-banner",
-                children: [
-                  JSX.jsx("img", {
-                    src: versionImg,
-                    alt: "Wirex",
-                    className: "client-card-banner-img",
-                  }),
-                  JSX.jsx("div", { className: "client-card-banner-overlay" }),
-                  JSX.jsxs("div", {
-                    className: "client-card-banner-content",
-                    children: [
-                      JSX.jsxs("div", {
-                        className: "client-card-title",
-                        children: ["Minecraft ", currentVersion.gameVersion],
-                      }),
-                      JSX.jsx("div", {
-                        className: "client-card-subtitle",
-                        children: currentVersion.display,
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              JSX.jsxs("div", {
-                className: "client-card-body",
-                children: [
-                  JSX.jsxs("div", {
-                    className: "client-meta-row",
-                    children: [
-                      JSX.jsxs("div", {
-                        className: "client-meta-item",
-                        children: [
-                          JSX.jsx("span", { className: "client-meta-label", children: "Игрок" }),
-                          JSX.jsx("span", {
-                            className: "client-meta-value",
-                            children: LauncherController.userName || LauncherController.user?.username || "WirexUser",
-                          }),
-                        ],
-                      }),
-                      JSX.jsxs("div", {
-                        className: "client-meta-item",
-                        children: [
-                          JSX.jsx("span", { className: "client-meta-label", children: "Подписка" }),
-                          JSX.jsx("span", {
-                            className: "client-meta-value client-meta-sub",
-                            children: LauncherController.user?.subtill || "∞ Навсегда",
-                          }),
-                        ],
-                      }),
-                      JSX.jsxs("div", {
-                        className: "client-meta-item",
-                        children: [
-                          JSX.jsx("span", { className: "client-meta-label", children: "Память" }),
-                          JSX.jsxs("span", {
-                            className: "client-meta-value",
-                            children: [LauncherController.ram || 2048, " MB"],
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                  JSX.jsx("div", {
-                    className: "client-card-action",
-                    children: !isLaunching
-                      ? JSX.jsxs("button", {
-                          className: "client-play-button",
-                          onClick: () => handleLaunchGame(currentVersion),
-                          children: [
-                            JSX.jsx("i", { className: "bi bi-play-fill" }),
-                            "Играть",
-                          ],
-                        })
-                      : JSX.jsxs("div", {
-                          className: "client-launch-progress-box",
-                          children: [
-                            JSX.jsxs("div", {
-                              className: "client-progress-header",
-                              children: [
-                                JSX.jsxs("span", {
-                                  className: "client-progress-status",
-                                  children: [
-                                    JSX.jsx("i", {
-                                      className: "bi bi-arrow-repeat",
-                                      style: { animation: "spin 1s linear infinite", display: "inline-block" },
-                                    }),
-                                    loadText,
-                                  ],
-                                }),
-                                JSX.jsxs("span", {
-                                  className: "client-progress-pct",
-                                  children: [loadPercent, "%"],
-                                }),
-                              ],
-                            }),
-                            JSX.jsx("div", {
-                              className: "launch-progress-container",
-                              style: { margin: "6px 0 0 0" },
-                              children: JSX.jsx("div", {
-                                className: "launch-progress-bar",
-                                style: { width: `${loadPercent}%` },
-                              }),
-                            }),
-                          ],
-                        }),
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    });
-  }
 
   return JSX.jsx("div", {
     className: Ve.home,
@@ -449,10 +307,10 @@ const HomeView = () => {
         return JSX.jsxs(
           "div",
           {
-            className: `${Ve.version}`,
-            style: { cursor: "pointer" },
+            className: `${Ve.version}${isLaunching ? ` ${Ve.loading}` : ""}`,
+            style: { cursor: isLaunching ? "default" : "pointer" },
             onClick: () => {
-              setSelectedVersion(version);
+              if (!isLaunching) handleLaunchGame(version);
             },
             "data-aos": "start-blur-left",
             "data-aos-delay": 50 * idx,
@@ -482,10 +340,57 @@ const HomeView = () => {
                 className: Ve.contentButtonStart,
                 onClick: (e) => {
                   e.stopPropagation();
-                  setSelectedVersion(version);
+                  if (!isLaunching) handleLaunchGame(version);
                 },
-                children: JSX.jsx(PlayIcon, { width: 10, height: 10 }),
+                children: isLaunching
+                  ? JSX.jsx("i", {
+                      className: "bi bi-arrow-repeat",
+                      style: {
+                        color: "#fff",
+                        fontSize: "14px",
+                        animation: "spin 1s linear infinite",
+                        display: "inline-block",
+                      },
+                    })
+                  : JSX.jsx(PlayIcon, { width: 10, height: 10 }),
               }),
+              isLaunching &&
+                JSX.jsxs("div", {
+                  className: Ve.preloaderOverlay,
+                  children: [
+                    JSX.jsxs("div", {
+                      className: Ve.circularLoader,
+                      style: { "--progress": loadPercent },
+                      children: [
+                        JSX.jsxs("svg", {
+                          viewBox: "0 0 80 80",
+                          children: [
+                            JSX.jsx("circle", {
+                              className: Ve.bg,
+                              cx: 40,
+                              cy: 40,
+                              r: 36,
+                            }),
+                            JSX.jsx("circle", {
+                              className: Ve.fill,
+                              cx: 40,
+                              cy: 40,
+                              r: 36,
+                            }),
+                          ],
+                        }),
+                        JSX.jsxs("div", {
+                          className: Ve.percentage,
+                          children: [`${loadPercent}%`],
+                        }),
+                      ],
+                    }),
+                    JSX.jsx("div", {
+                      className: Ve.loaderText,
+                      children: loadText,
+                    }),
+                  ],
+                }),
             ],
           },
           version.id

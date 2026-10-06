@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -63,32 +64,24 @@ namespace WirexClientLauncher
                 string localApp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WirexLauncher", "formatted");
                 formattedDir = localApp;
 
-                if (!Directory.Exists(formattedDir) || !File.Exists(Path.Combine(formattedDir, "index.html")))
+                Assembly executingAssembly = Assembly.GetExecutingAssembly();
+                foreach (string resName in executingAssembly.GetManifestResourceNames())
                 {
-                    Assembly executingAssembly = Assembly.GetExecutingAssembly();
-                    foreach (string resName in executingAssembly.GetManifestResourceNames())
+                    if (resName.EndsWith("formatted.zip", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (resName.EndsWith("formatted.zip", StringComparison.OrdinalIgnoreCase))
+                        string tempZip = Path.Combine(Path.GetTempPath(), "wirex_formatted.zip");
+                        using (Stream s = executingAssembly.GetManifestResourceStream(resName))
+                        using (FileStream fs = File.Create(tempZip))
                         {
-                            string tempZip = Path.Combine(Path.GetTempPath(), "wirex_formatted.zip");
-                            using (Stream s = executingAssembly.GetManifestResourceStream(resName))
-                            using (FileStream fs = File.Create(tempZip))
-                            {
-                                byte[] buf = new byte[8192];
-                                int read;
-                                while ((read = s.Read(buf, 0, buf.Length)) > 0)
-                                    fs.Write(buf, 0, read);
-                            }
-
-                            if (Directory.Exists(formattedDir))
-                            {
-                                try { Directory.Delete(formattedDir, true); } catch { }
-                            }
-
-                            SafeExtractZip(tempZip, formattedDir);
-                            try { File.Delete(tempZip); } catch { }
-                            break;
+                            byte[] buf = new byte[8192];
+                            int read;
+                            while ((read = s.Read(buf, 0, buf.Length)) > 0)
+                                fs.Write(buf, 0, read);
                         }
+
+                        SafeExtractZip(tempZip, formattedDir);
+                        try { File.Delete(tempZip); } catch { }
+                        break;
                     }
                 }
             }
@@ -286,6 +279,8 @@ namespace WirexClientLauncher
 
             string[] candidates = new string[]
             {
+                Path.Combine(clientDir, @"runtime\jre-25\bin\javaw.exe"),
+                Path.Combine(clientDir, @"runtime-clean\bin\javaw.exe"),
                 Path.Combine(clientDir, @"runtime\jre-21\bin\javaw.exe"),
                 Path.Combine(clientDir, @"runtime\bin\javaw.exe"),
                 Path.Combine(clientDir, @"jre\bin\javaw.exe"),
@@ -495,7 +490,7 @@ namespace WirexClientLauncher
                     string uuid = Guid.NewGuid().ToString("N");
 
                     string args = string.Format(
-                        "-Xmx{0}M -Xms512M \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @\"{3}\" net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
+                        "-Xmx{0}M -Xms512M --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
                         finalRam,
                         nativesDir,
                         clientDir,
@@ -563,26 +558,11 @@ namespace WirexClientLauncher
 
                 try
                 {
-                    int uIdx = msg.IndexOf("\"userName\":");
-                    if (uIdx != -1)
-                    {
-                        int q1 = msg.IndexOf('"', uIdx + 11);
-                        int q2 = msg.IndexOf('"', q1 + 1);
-                        if (q1 != -1 && q2 != -1)
-                            userName = msg.Substring(q1 + 1, q2 - q1 - 1);
-                    }
+                    Match mUser = Regex.Match(msg, @"""userName""\s*:\s*""([^""]+)""");
+                    if (mUser.Success) userName = mUser.Groups[1].Value;
 
-                    int rIdx = msg.IndexOf("\"memoryCount\":");
-                    if (rIdx != -1)
-                    {
-                        int q1 = msg.IndexOf('"', rIdx + 14);
-                        int q2 = msg.IndexOf('"', q1 + 1);
-                        if (q1 != -1 && q2 != -1)
-                        {
-                            string ramStr = msg.Substring(q1 + 1, q2 - q1 - 1);
-                            int.TryParse(ramStr, out ramMb);
-                        }
-                    }
+                    Match mRam = Regex.Match(msg, @"""memoryCount""\s*:\s*""?(\d+)""?");
+                    if (mRam.Success) int.TryParse(mRam.Groups[1].Value, out ramMb);
                 }
                 catch { }
 

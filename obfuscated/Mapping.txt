@@ -1,0 +1,153 @@
+Renamed Types:
+
+[WirexLauncher]System.Runtime.CompilerServices.RefSafetyRulesAttribute -> [WirexLauncher] . 
+{
+
+	[WirexLauncher]System.Runtime.CompilerServices.RefSafetyRulesAttribute::.ctor[1]( [mscorlib]System.Int32 ) skipped:  special name
+
+	System.Int32 [WirexLauncher]System.Int32 System.Runtime.CompilerServices.RefSafetyRulesAttribute::Version ->  
+}
+
+[WirexLauncher]WirexClientLauncher.MainWindow -> [WirexLauncher] . 
+{
+	[WirexLauncher]WirexClientLauncher.MainWindow::ReleaseCapture[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::SendMessage[4]( [mscorlib]System.IntPtr, [mscorlib]System.Int32, [mscorlib]System.IntPtr, [mscorlib]System.IntPtr ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::StartLocalServer[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::ProcessRequest[1]( [System]System.Net.HttpListenerContext ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::MainWindow_Loaded[2]( [mscorlib]System.Object, [PresentationCore]System.Windows.RoutedEventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::DragWindow[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::SendUiProgress[2]( [mscorlib]System.String, [mscorlib]System.Int32 ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::SafeExtractZip[2]( [mscorlib]System.String, [mscorlib]System.String ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::InitSecurityProtocol[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::FindOrDownloadJava[1]( [mscorlib]System.String ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::EnsureClientFiles[1]( [mscorlib]System.String ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::LaunchGame[2]( [mscorlib]System.String, [mscorlib]System.Int32 ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::CoreWebView2_WebMessageReceived[2]( [mscorlib]System.Object, [Microsoft.Web.WebView2.Core]Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::MainWindow_Closed[2]( [mscorlib]System.Object, [mscorlib]System.EventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<StartLocalServer>b__9_0[1]( [mscorlib]System.Object ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<StartLocalServer>b__9_1[1]( [mscorlib]System.Object ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<FindOrDownloadJava>b__16_0[2]( [mscorlib]System.Object, [System]System.Net.DownloadProgressChangedEventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<EnsureClientFiles>b__17_0[2]( [mscorlib]System.Object, [System]System.Net.DownloadProgressChangedEventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<CoreWebView2_WebMessageReceived>b__19_0[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<CoreWebView2_WebMessageReceived>b__19_1[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow::<CoreWebView2_WebMessageReceived>b__19_2[0]( ) ->  
+
+	[WirexLauncher]WirexClientLauncher.MainWindow::.ctor[0]( ) skipped:  special name
+
+	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow::WM_NCLBUTTONDOWN ->  
+	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow::HT_CAPTION ->  
+	Microsoft.Web.WebView2.Wpf.WebView2 [WirexLauncher]Microsoft.Web.WebView2.Wpf.WebView2 WirexClientLauncher.MainWindow::webView ->  
+	System.Net.HttpListener [WirexLauncher]System.Net.HttpListener WirexClientLauncher.MainWindow::httpListener ->  
+	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow::port ->  
+	System.String [WirexLauncher]System.String WirexClientLauncher.MainWindow::formattedDir ->  
+}
+
+[WirexLauncher]WirexClientLauncher.App/<>O -> [WirexLauncher] . / 
+{
+	System.ResolveEventHandler [WirexLauncher]System.ResolveEventHandler WirexClientLauncher.App/<>O::<0>__OnAssemblyResolve ->  
+}
+
+[WirexLauncher]WirexClientLauncher.App/<>c -> [WirexLauncher] . / 
+{
+	[WirexLauncher]WirexClientLauncher.App/<>c::<Main>b__4_0[4]( [mscorlib]System.Object, [mscorlib]System.Security.Cryptography.X509Certificates.X509Certificate, [System]System.Security.Cryptography.X509Certificates.X509Chain, [System]System.Net.Security.SslPolicyErrors ) ->  
+
+	[WirexLauncher]WirexClientLauncher.App/<>c::.cctor[0]( ) skipped:  special name
+	[WirexLauncher]WirexClientLauncher.App/<>c::.ctor[0]( ) skipped:  special name
+
+	WirexClientLauncher.App/<>c [WirexLauncher]WirexClientLauncher.App/<>c WirexClientLauncher.App/<>c::<>9 ->  
+	System.Net.Security.RemoteCertificateValidationCallback [WirexLauncher]System.Net.Security.RemoteCertificateValidationCallback WirexClientLauncher.App/<>c::<>9__4_0 ->  
+}
+
+[WirexLauncher]WirexClientLauncher.MainWindow/<>c -> [WirexLauncher] . / 
+{
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c::<MainWindow_Loaded>b__11_0[2]( [mscorlib]System.Object, [Microsoft.Web.WebView2.Core]Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c::<InitSecurityProtocol>b__15_0[4]( [mscorlib]System.Object, [mscorlib]System.Security.Cryptography.X509Certificates.X509Certificate, [System]System.Security.Cryptography.X509Certificates.X509Chain, [System]System.Net.Security.SslPolicyErrors ) ->  
+
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c::.cctor[0]( ) skipped:  special name
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c::.ctor[0]( ) skipped:  special name
+
+	WirexClientLauncher.MainWindow/<>c [WirexLauncher]WirexClientLauncher.MainWindow/<>c WirexClientLauncher.MainWindow/<>c::<>9 ->  
+	System.EventHandler`1<Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs> [WirexLauncher]System.EventHandler`1<Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs> WirexClientLauncher.MainWindow/<>c::<>9__11_0 ->  
+	System.Net.Security.RemoteCertificateValidationCallback [WirexLauncher]System.Net.Security.RemoteCertificateValidationCallback WirexClientLauncher.MainWindow/<>c::<>9__15_0 ->  
+}
+
+[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass13_0 -> [WirexLauncher] . / 
+{
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass13_0::<SendUiProgress>b__0[0]( ) ->  
+
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass13_0::.ctor[0]( ) skipped:  special name
+
+	WirexClientLauncher.MainWindow [WirexLauncher]WirexClientLauncher.MainWindow WirexClientLauncher.MainWindow/<>c__DisplayClass13_0::<>4__this ->  
+	System.String [WirexLauncher]System.String WirexClientLauncher.MainWindow/<>c__DisplayClass13_0::status ->  
+	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow/<>c__DisplayClass13_0::percent ->  
+}
+
+[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass18_0 -> [WirexLauncher] . / 
+{
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::<LaunchGame>b__0[1]( [mscorlib]System.Object ) ->  
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::<LaunchGame>b__1[0]( ) ->  
+
+	[WirexLauncher]WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::.ctor[0]( ) skipped:  special name
+
+	WirexClientLauncher.MainWindow [WirexLauncher]WirexClientLauncher.MainWindow WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::<>4__this ->  
+	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::ramMb ->  
+	System.String [WirexLauncher]System.String WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::userName ->  
+	System.Action [WirexLauncher]System.Action WirexClientLauncher.MainWindow/<>c__DisplayClass18_0::<>9__1 ->  
+}
+
+[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11 -> [WirexLauncher] . / 
+{
+
+	[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::.ctor[0]( ) skipped:  special name
+	[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::MoveNext[0]( ) skipped:  external base class or interface
+	[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::SetStateMachine[1]( [mscorlib]System.Runtime.CompilerServices.IAsyncStateMachine ) skipped:  external base class or interface
+
+	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>1__state ->  
+	System.Runtime.CompilerServices.AsyncVoidMethodBuilder [WirexLauncher]System.Runtime.CompilerServices.AsyncVoidMethodBuilder WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>t__builder ->  
+	System.Object [WirexLauncher]System.Object WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::sender ->  
+	System.Windows.RoutedEventArgs [WirexLauncher]System.Windows.RoutedEventArgs WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::e ->  
+	WirexClientLauncher.MainWindow [WirexLauncher]WirexClientLauncher.MainWindow WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>4__this ->  
+	System.String [WirexLauncher]System.String WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<userDataFolder>5__1 ->  
+	Microsoft.Web.WebView2.Core.CoreWebView2Environment [WirexLauncher]Microsoft.Web.WebView2.Core.CoreWebView2Environment WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<env>5__2 ->  
+	Microsoft.Web.WebView2.Core.CoreWebView2Environment [WirexLauncher]Microsoft.Web.WebView2.Core.CoreWebView2Environment WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>s__3 ->  
+	System.Exception [WirexLauncher]System.Exception WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<ex>5__4 ->  
+	System.Runtime.CompilerServices.TaskAwaiter`1<Microsoft.Web.WebView2.Core.CoreWebView2Environment> [WirexLauncher]System.Runtime.CompilerServices.TaskAwaiter`1<Microsoft.Web.WebView2.Core.CoreWebView2Environment> WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>u__1 ->  
+	System.Runtime.CompilerServices.TaskAwaiter [WirexLauncher]System.Runtime.CompilerServices.TaskAwaiter WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>u__2 ->  
+}
+
+[WirexLauncher]Microsoft.CodeAnalysis.EmbeddedAttribute -> [WirexLauncher] . 
+{
+
+	[WirexLauncher]Microsoft.CodeAnalysis.EmbeddedAttribute::.ctor[0]( ) skipped:  special name
+}
+
+[WirexLauncher]WirexClientLauncher.App -> [WirexLauncher] . 
+{
+	[WirexLauncher]WirexClientLauncher.App::SetDllDirectory[1]( [mscorlib]System.String ) ->  
+	[WirexLauncher]WirexClientLauncher.App::LoadLibrary[1]( [mscorlib]System.String ) ->  
+	[WirexLauncher]WirexClientLauncher.App::CheckRemoteDebuggerPresent[2]( [mscorlib]System.IntPtr, [mscorlib]System.Boolean& ) ->  
+	[WirexLauncher]WirexClientLauncher.App::AntiAnalysis[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.App::Main[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.App::OnAssemblyResolve[2]( [mscorlib]System.Object, [mscorlib]System.ResolveEventArgs ) ->  
+	[WirexLauncher]WirexClientLauncher.App::ExtractNativeDependencies[0]( ) ->  
+	[WirexLauncher]WirexClientLauncher.App::RunApp[0]( ) ->  
+
+	[WirexLauncher]WirexClientLauncher.App::.ctor[0]( ) skipped:  special name
+}
+
+[WirexLauncher]<PrivateImplementationDetails> -> [WirexLauncher] . 
+{
+	[WirexLauncher]<PrivateImplementationDetails>::ComputeStringHash[1]( [mscorlib]System.String ) ->  
+}
+
+Skipped Types:
+
+Renamed Resources:
+
+
+Skipped Resources:
+
+Microsoft.Web.WebView2.Core.dll (no clear new name)
+Microsoft.Web.WebView2.Wpf.dll (no clear new name)
+WebView2Loader.dll (no clear new name)
+formatted.zip (no clear new name)
