@@ -36,11 +36,7 @@
     const cleanPass = (authKey || '').trim();
 
     if (!cleanUser) {
-      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите логин или почту' });
-      return;
-    }
-    if (!cleanPass) {
-      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите пароль' });
+      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите логин' });
       return;
     }
 
@@ -54,9 +50,10 @@
       const { data: users, error } = await sb
         .from('profiles')
         .select('*')
-        .or(`login.ilike."${cleanUser}",username.ilike."${cleanUser}",email.ilike."${cleanUser}"`);
+        .ilike('login', cleanUser);
 
       if (error) {
+        console.error('Supabase query error:', error);
         dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ошибка связи с базой данных' });
         return;
       }
