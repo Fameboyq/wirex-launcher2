@@ -460,9 +460,9 @@ namespace WirexClientLauncher
 
             string[] downloadUrls = new string[]
             {
+                "https://pub-c405b4b1c36c420c9968dec91a633469.r2.dev/WirexClient.zip",
                 "https://github.com/Fameboyq/wirex-launcher2/releases/download/1.0/WirexClient.zip",
-                "https://github.com/DaniilGaiduk/wirex-launcher2/releases/download/1.0/WirexClient.zip",
-                "https://github.com/DaniilGaiduk/wirex-launcher2/releases/download/1.0/WirexClient_User_FULL.zip"
+                "https://github.com/DaniilGaiduk/wirex-launcher2/releases/download/1.0/WirexClient.zip"
             };
 
             string dlZip = Path.Combine(Path.GetTempPath(), "WirexClient_Download.zip");
@@ -519,13 +519,13 @@ namespace WirexClientLauncher
 
                     SendUiProgress("Запуск Minecraft 1.21.4...", 96);
 
-                    int finalRam = ramMb > 500 ? ramMb : 2048;
+                    int finalRam = ramMb >= 2048 ? ramMb : 4096;
                     string user = !string.IsNullOrEmpty(userName) ? userName : "WirexUser";
                     string uuid = Guid.NewGuid().ToString("N");
                     string sessionToken = "WIRX-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
 
                     string args = string.Format(
-                        "-Xmx{0}M -Xms512M --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED -Dwirex.auth.token={7} \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
+                        "-Xmx{0}M -Xms1024M -XX:+UseG1GC -XX:+ParallelRefProcEnabled --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED -Dwirex.auth.token={7} \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
                         finalRam,
                         nativesDir,
                         clientDir,
