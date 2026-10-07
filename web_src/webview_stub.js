@@ -1,8 +1,25 @@
 (function() {
   const listeners = [];
-  const nativePostMessage = (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function')
-    ? window.chrome.webview.postMessage.bind(window.chrome.webview)
+  const realWebview = (window.chrome && window.chrome.webview) ? window.chrome.webview : null;
+  const nativePostMessage = (realWebview && typeof realWebview.postMessage === 'function')
+    ? realWebview.postMessage.bind(realWebview)
     : null;
+
+  if (realWebview && typeof realWebview.addEventListener === 'function') {
+    realWebview.addEventListener('message', function(event) {
+      try {
+        let payload = event.data;
+        if (typeof payload === 'string') {
+          try { payload = JSON.parse(payload); } catch(e) {}
+        }
+        if (payload && payload.action) {
+          dispatchToUI(payload.action, payload.value);
+        }
+      } catch (e) {
+        console.error('Error forwarding native C# message:', e);
+      }
+    });
+  }
 
   const SB_URL = 'https://wsuahpdnqstzcoipzymp.supabase.co';
   const SB_KEY = 'sb_publishable_2HTaqYc8efRIeZJV3n_gUg_GGhrbYCI';
@@ -205,8 +222,8 @@
 
   function handleStartClient(payload) {
     dispatchToUI('CHANGE_LOADER_TEXT_WITH_PERCENT', {
-      status: 'Инициализация запуска клиента...',
-      percent: 5
+      status: 'Подключение к серверу загрузки...',
+      percent: 8
     });
   }
 

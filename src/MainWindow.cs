@@ -236,15 +236,16 @@ namespace WirexClientLauncher
         {
             try
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (webView != null && webView.CoreWebView2 != null)
                     {
-                        string safeStatus = status.Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
+                        string safeStatus = status.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
                         string json = $"{{\"action\":\"CHANGE_LOADER_TEXT_WITH_PERCENT\",\"value\":{{\"status\":\"{safeStatus}\",\"percent\":{percent}}}}}";
-                        webView.CoreWebView2.PostWebMessageAsJson(json);
+                        try { webView.CoreWebView2.PostWebMessageAsJson(json); } catch { }
+                        try { webView.CoreWebView2.ExecuteScriptAsync($"if(window.LauncherController&&LauncherController.handleLauncherActionMessage)LauncherController.handleLauncherActionMessage('CHANGE_LOADER_TEXT_WITH_PERCENT',{{status:'{safeStatus}',percent:{percent}}});"); } catch { }
                     }
-                });
+                }));
             }
             catch { }
         }
@@ -473,6 +474,31 @@ namespace WirexClientLauncher
             }
         }
 
+        private string ResolveRedirectUrl(string url)
+        {
+            try
+            {
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+                req.Method = "HEAD";
+                req.AllowAutoRedirect = false;
+                req.Timeout = 20000;
+                using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
+                {
+                    if ((int)resp.StatusCode >= 300 && (int)resp.StatusCode < 400)
+                    {
+                        string loc = resp.Headers["Location"];
+                        if (!string.IsNullOrEmpty(loc)) return loc;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Resolve redirect failed: " + ex.Message);
+            }
+            return url;
+        }
+
         private bool DownloadFileWithResume(string url, string dlZip)
         {
             const int maxRetries = 5;
@@ -496,7 +522,10 @@ namespace WirexClientLauncher
                         }
                     }
 
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                    SendUiProgress("Подключение к серверу загрузки Wirex...", 12);
+                    string targetUrl = ResolveRedirectUrl(url);
+
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(targetUrl);
                     req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
                     req.Timeout = 60000;
                     req.ReadWriteTimeout = 120000;
@@ -532,13 +561,22 @@ namespace WirexClientLauncher
                             int read;
                             long lastUpdate = DateTime.UtcNow.Ticks;
 
+                            // Send initial progress immediately as stream opens
+                            {
+                                long mbRec = existingBytes / (1024 * 1024);
+                                long mbTot = totalBytes / (1024 * 1024);
+                                int pct = (int)Math.Min(99, (existingBytes * 100) / totalBytes);
+                                int uiPct = 15 + (int)(pct * 0.70);
+                                SendUiProgress($"Загрузка клиента: {mbRec} МБ / {mbTot} МБ ({pct}%)...", uiPct);
+                            }
+
                             while ((read = s.Read(buffer, 0, buffer.Length)) > 0)
                             {
                                 fs.Write(buffer, 0, read);
                                 existingBytes += read;
 
                                 long nowTicks = DateTime.UtcNow.Ticks;
-                                if (nowTicks - lastUpdate > 2500000) // 250 ms
+                                if (nowTicks - lastUpdate > 1500000) // 150 ms
                                 {
                                     lastUpdate = nowTicks;
                                     long mbRec = existingBytes / (1024 * 1024);
@@ -553,6 +591,7 @@ namespace WirexClientLauncher
 
                     if (File.Exists(dlZip) && new FileInfo(dlZip).Length > 800000000)
                     {
+                        SendUiProgress("Проверка целостности архива...", 85);
                         return true;
                     }
                 }
