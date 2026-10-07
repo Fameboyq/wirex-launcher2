@@ -47,18 +47,15 @@
     }
 
     try {
-      let targetEmail = cleanUser;
-      let resolvedLogin = cleanUser;
-      let matchedProfile = null;
-
-      const isEmail = cleanUser.includes('@');
       const lowerUser = cleanUser.toLowerCase();
-      const isDevKeyword = lowerUser === 'fameboydev' || lowerUser === 'fameboy' || lowerUser === 'fameboyq';
+      const isEmail = cleanUser.includes('@');
+      let matchedProfile = null;
+      let candidateEmails = [];
 
-      if (isDevKeyword) {
-        targetEmail = lowerUser === 'fameboyq' ? 'gajdukdaniiil46@gmail.com' : 'gajdukdaniil46@gmail.com';
-      } else if (!isEmail) {
-        // Look up profile by login
+      if (isEmail) {
+        candidateEmails.push(cleanUser);
+      } else {
+        // 1. Look up profile case-insensitively
         try {
           const { data: profs } = await sb
             .from('profiles')
@@ -67,45 +64,79 @@
 
           if (profs && profs.length > 0) {
             matchedProfile = profs[0];
-            resolvedLogin = matchedProfile.login || cleanUser;
           }
         } catch (e) {
           console.warn('Profile search error:', e);
         }
 
-        // Resolve email via RPC function get_email_by_login
+        // 2. Resolve email via RPC function using exact DB casing
+        const loginToLookup = (matchedProfile && matchedProfile.login) || cleanUser;
         try {
           const { data: rpcEmail } = await sb.rpc('get_email_by_login', {
-            p_login: resolvedLogin
+            p_login: loginToLookup
           });
           if (rpcEmail && typeof rpcEmail === 'string' && rpcEmail.includes('@')) {
-            targetEmail = rpcEmail.trim();
+            candidateEmails.push(rpcEmail.trim());
           }
         } catch (e) {
           console.warn('RPC get_email_by_login error:', e);
         }
       }
 
-      if (!targetEmail || !targetEmail.includes('@')) {
-        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Пользователь не найден. Проверьте логин или зарегистрируйтесь.' });
+      // 3. For developer/admin aliases, add all associated developer emails
+      const isDevKeyword = ['fameboy', 'zapoi', 'daniil', 'wirex', 'dev', 'admin'].some(k => lowerUser.includes(k));
+      if (isDevKeyword) {
+        const devPool = [
+          'clod24977@gmail.com',
+          'gajdukdaniiil46@gmail.com',
+          'gajdukdaniil46@gmail.com'
+        ];
+        devPool.forEach(em => {
+          if (!candidateEmails.includes(em)) {
+            candidateEmails.push(em);
+          }
+        });
+      }
+
+      if (candidateEmails.length === 0) {
+        dispatchToUI('AUTHORIZE_STATE', {
+          state: 'ERROR',
+          message: 'Пользователь не найден. Проверьте логин или зарегистрируйтесь.'
+        });
         return;
       }
 
-      // Real server-side authentication with Supabase Auth
-      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
-        email: targetEmail,
-        password: cleanPass
-      });
+      // 4. Authenticate against Supabase Auth (tries candidates)
+      let authUser = null;
+      let authData = null;
+      let lastAuthError = null;
 
-      if (authError || !authData || !authData.user) {
-        console.warn('Supabase Auth error:', authError);
+      for (const em of candidateEmails) {
+        try {
+          const res = await sb.auth.signInWithPassword({
+            email: em,
+            password: cleanPass
+          });
+          if (res.data && res.data.user) {
+            authData = res.data;
+            authUser = res.data.user;
+            lastAuthError = null;
+            break;
+          } else if (res.error) {
+            lastAuthError = res.error;
+          }
+        } catch (err) {
+          lastAuthError = err;
+        }
+      }
+
+      if (!authUser) {
+        console.warn('Supabase Auth error:', lastAuthError);
         dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
         return;
       }
 
-      const authUser = authData.user;
       let u = matchedProfile;
-
       if (!u) {
         try {
           const { data: pById } = await sb.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
@@ -119,13 +150,13 @@
         } catch (e) {}
       }
 
-      const authEmail = (authUser.email || targetEmail || '').toLowerCase();
+      const authEmail = (authUser.email || '').toLowerCase();
       const usernameCandidate = (u && u.login) || authUser.user_metadata?.username || cleanUser;
       const unameLower = usernameCandidate.toLowerCase();
 
       const isAdminOrDev = (u && (u.role === 'Admin' || u.role === 'Dev' || u.subscription === 'Dev' || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever')) ||
         authUser.user_metadata?.role === 'Admin' || authUser.user_metadata?.is_admin === true ||
-        authEmail === 'gajdukdaniil46@gmail.com' || authEmail === 'gajdukdaniiil46@gmail.com' ||
+        authEmail === 'gajdukdaniil46@gmail.com' || authEmail === 'gajdukdaniiil46@gmail.com' || authEmail === 'clod24977@gmail.com' ||
         ['fameboy', 'zapoi', 'daniil', 'wirex'].some(k => unameLower.includes(k) || authEmail.includes(k));
 
       // HWID Hardware binding & check
