@@ -47,15 +47,17 @@
     }
 
     try {
-      const lowerUser = cleanUser.toLowerCase();
-      const isEmail = cleanUser.includes('@');
+      let targetEmail = null;
       let matchedProfile = null;
-      let candidateEmails = [];
+      const lowerUser = cleanUser.toLowerCase();
 
-      if (isEmail) {
-        candidateEmails.push(cleanUser);
+      // Only Idris has Dev: FameboyDev -> gajdukdaniil46@gmail.com
+      if (lowerUser === 'fameboydev') {
+        targetEmail = 'gajdukdaniil46@gmail.com';
+      } else if (cleanUser.includes('@')) {
+        targetEmail = cleanUser;
       } else {
-        // 1. Look up profile case-insensitively
+        // Regular user: find profile in DB
         try {
           const { data: profs } = await sb
             .from('profiles')
@@ -69,73 +71,46 @@
           console.warn('Profile search error:', e);
         }
 
-        // 2. Resolve email via RPC function using exact DB casing
         const loginToLookup = (matchedProfile && matchedProfile.login) || cleanUser;
         try {
           const { data: rpcEmail } = await sb.rpc('get_email_by_login', {
             p_login: loginToLookup
           });
           if (rpcEmail && typeof rpcEmail === 'string' && rpcEmail.includes('@')) {
-            candidateEmails.push(rpcEmail.trim());
+            targetEmail = rpcEmail.trim();
           }
         } catch (e) {
           console.warn('RPC get_email_by_login error:', e);
         }
       }
 
-      // 3. For developer/admin aliases, add all associated developer emails
-      const isDevKeyword = ['fameboy', 'zapoi', 'daniil', 'wirex', 'dev', 'admin'].some(k => lowerUser.includes(k));
-      if (isDevKeyword) {
-        const devPool = [
-          'clod24977@gmail.com',
-          'gajdukdaniiil46@gmail.com',
-          'gajdukdaniil46@gmail.com'
-        ];
-        devPool.forEach(em => {
-          if (!candidateEmails.includes(em)) {
-            candidateEmails.push(em);
-          }
-        });
-      }
-
-      if (candidateEmails.length === 0) {
+      if (!targetEmail || !targetEmail.includes('@')) {
         dispatchToUI('AUTHORIZE_STATE', {
           state: 'ERROR',
-          message: 'Пользователь не найден. Проверьте логин или зарегистрируйтесь.'
+          message: 'Пользователь не найден. Проверьте правильность логина.'
         });
         return;
       }
 
-      // 4. Authenticate against Supabase Auth (tries candidates)
-      let authUser = null;
-      let authData = null;
-      let lastAuthError = null;
+      // Strict Supabase Auth check
+      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+        email: targetEmail,
+        password: cleanPass
+      });
 
-      for (const em of candidateEmails) {
-        try {
-          const res = await sb.auth.signInWithPassword({
-            email: em,
-            password: cleanPass
-          });
-          if (res.data && res.data.user) {
-            authData = res.data;
-            authUser = res.data.user;
-            lastAuthError = null;
-            break;
-          } else if (res.error) {
-            lastAuthError = res.error;
-          }
-        } catch (err) {
-          lastAuthError = err;
-        }
-      }
-
-      if (!authUser) {
-        console.warn('Supabase Auth error:', lastAuthError);
+      if (authError || !authData || !authData.user) {
+        console.warn('Supabase Auth error:', authError);
         dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
         return;
       }
 
+      const authUser = authData.user;
+      const authEmail = (authUser.email || targetEmail).toLowerCase();
+
+      // STRICT DEV CHECK: ONLY gajdukdaniil46@gmail.com is Dev!
+      const isDev = (authEmail === 'gajdukdaniil46@gmail.com');
+
+      // Fetch profile
       let u = matchedProfile;
       if (!u) {
         try {
@@ -143,25 +118,10 @@
           if (pById) u = pById;
         } catch (e) {}
       }
-      if (!u) {
-        try {
-          const { data: pByLogin } = await sb.from('profiles').select('*').ilike('login', cleanUser).maybeSingle();
-          if (pByLogin) u = pByLogin;
-        } catch (e) {}
-      }
 
-      const authEmail = (authUser.email || '').toLowerCase();
-      const usernameCandidate = (u && u.login) || authUser.user_metadata?.username || cleanUser;
-      const unameLower = usernameCandidate.toLowerCase();
-
-      const isAdminOrDev = (u && (u.role === 'Admin' || u.role === 'Dev' || u.subscription === 'Dev' || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever')) ||
-        authUser.user_metadata?.role === 'Admin' || authUser.user_metadata?.is_admin === true ||
-        authEmail === 'gajdukdaniil46@gmail.com' || authEmail === 'gajdukdaniiil46@gmail.com' || authEmail === 'clod24977@gmail.com' ||
-        ['fameboy', 'zapoi', 'daniil', 'wirex'].some(k => unameLower.includes(k) || authEmail.includes(k));
-
-      // HWID Hardware binding & check
+      // HWID check for regular users
       const clientHwid = window.WIREX_HWID || '';
-      if (!isAdminOrDev && u) {
+      if (!isDev && u) {
         if (!u.hwid && clientHwid) {
           try {
             await sb.from('profiles').update({ hwid: clientHwid }).eq('id', u.id);
@@ -176,11 +136,14 @@
         }
       }
 
+      // Subscription check
       let subTill = 'Нет подписки';
       let isExpired = false;
       const now = new Date();
 
-      if (isAdminOrDev || (u && (u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever'))) {
+      if (isDev) {
+        subTill = '∞ Навсегда';
+      } else if (u && (u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever')) {
         subTill = '∞ Навсегда';
       } else if (u && u.subscription_expires_at) {
         try {
@@ -200,7 +163,7 @@
         isExpired = true;
       }
 
-      if (!isAdminOrDev && (isExpired || subTill === 'Истекла' || subTill === 'Нет подписки')) {
+      if (!isDev && (isExpired || subTill === 'Истекла' || subTill === 'Нет подписки')) {
         dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ваша подписка истекла или не активна.' });
         return;
       }
@@ -208,9 +171,9 @@
       dispatchToUI('AUTHORIZE_STATE', {
         state: 'OK',
         till: subTill,
-        username: usernameCandidate,
+        username: isDev ? 'FameboyDev' : ((u && u.login) || authUser.user_metadata?.username || cleanUser),
         id: (u && u.id) || authUser.id || 6009,
-        priority: 0,
+        priority: isDev ? 1 : 0,
         versions: 'wirex_1214:Stable 1.21.4:0;'
       });
     } catch (err) {
