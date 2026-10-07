@@ -160,6 +160,9 @@ namespace WirexClientLauncher
                     }
 
                     ctx.Response.ContentType = mime;
+                    ctx.Response.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
+                    ctx.Response.Headers.Add("Pragma", "no-cache");
+                    ctx.Response.Headers.Add("Expires", "0");
                     ctx.Response.ContentLength64 = fileBytes.Length;
                     ctx.Response.OutputStream.Write(fileBytes, 0, fileBytes.Length);
                 }
