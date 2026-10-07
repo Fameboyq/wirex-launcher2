@@ -281,18 +281,25 @@ namespace WirexClientLauncher
                         SendUiProgress($"Распаковка: {current}/{count} файлов...", extractPct);
                     }
 
-                    if (string.IsNullOrEmpty(entry.Name) || entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
+                    try
                     {
-                        string subDir = Path.Combine(destDir, entry.FullName);
-                        Directory.CreateDirectory(subDir);
+                        if (string.IsNullOrEmpty(entry.Name) || entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
+                        {
+                            string subDir = Path.Combine(destDir, entry.FullName);
+                            Directory.CreateDirectory(subDir);
+                        }
+                        else
+                        {
+                            string targetPath = Path.Combine(destDir, entry.FullName);
+                            string dir = Path.GetDirectoryName(targetPath);
+                            if (!string.IsNullOrEmpty(dir))
+                                Directory.CreateDirectory(dir);
+                            entry.ExtractToFile(targetPath, true);
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        string targetPath = Path.Combine(destDir, entry.FullName);
-                        string dir = Path.GetDirectoryName(targetPath);
-                        if (!string.IsNullOrEmpty(dir))
-                            Directory.CreateDirectory(dir);
-                        entry.ExtractToFile(targetPath, true);
+                        Debug.WriteLine($"Failed to extract {entry.FullName}: {ex.Message}");
                     }
                 }
             }
