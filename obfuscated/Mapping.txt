@@ -98,19 +98,12 @@ Renamed Types:
 [WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11 -> [WirexLauncher] . / 
 {
 
-	[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::.ctor[0]( ) skipped:  special name
 	[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::MoveNext[0]( ) skipped:  external base class or interface
 	[WirexLauncher]WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::SetStateMachine[1]( [mscorlib]System.Runtime.CompilerServices.IAsyncStateMachine ) skipped:  external base class or interface
 
 	System.Int32 [WirexLauncher]System.Int32 WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>1__state ->  
 	System.Runtime.CompilerServices.AsyncVoidMethodBuilder [WirexLauncher]System.Runtime.CompilerServices.AsyncVoidMethodBuilder WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>t__builder ->  
-	System.Object [WirexLauncher]System.Object WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::sender ->  
-	System.Windows.RoutedEventArgs [WirexLauncher]System.Windows.RoutedEventArgs WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::e ->  
 	WirexClientLauncher.MainWindow [WirexLauncher]WirexClientLauncher.MainWindow WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>4__this ->  
-	System.String [WirexLauncher]System.String WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<userDataFolder>5__1 ->  
-	Microsoft.Web.WebView2.Core.CoreWebView2Environment [WirexLauncher]Microsoft.Web.WebView2.Core.CoreWebView2Environment WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<env>5__2 ->  
-	Microsoft.Web.WebView2.Core.CoreWebView2Environment [WirexLauncher]Microsoft.Web.WebView2.Core.CoreWebView2Environment WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>s__3 ->  
-	System.Exception [WirexLauncher]System.Exception WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<ex>5__4 ->  
 	System.Runtime.CompilerServices.TaskAwaiter`1<Microsoft.Web.WebView2.Core.CoreWebView2Environment> [WirexLauncher]System.Runtime.CompilerServices.TaskAwaiter`1<Microsoft.Web.WebView2.Core.CoreWebView2Environment> WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>u__1 ->  
 	System.Runtime.CompilerServices.TaskAwaiter [WirexLauncher]System.Runtime.CompilerServices.TaskAwaiter WirexClientLauncher.MainWindow/<MainWindow_Loaded>d__11::<>u__2 ->  
 }
@@ -133,11 +126,6 @@ Renamed Types:
 	[WirexLauncher]WirexClientLauncher.App::RunApp[0]( ) ->  
 
 	[WirexLauncher]WirexClientLauncher.App::.ctor[0]( ) skipped:  special name
-}
-
-[WirexLauncher]<PrivateImplementationDetails> -> [WirexLauncher] . 
-{
-	[WirexLauncher]<PrivateImplementationDetails>::ComputeStringHash[1]( [mscorlib]System.String ) ->  
 }
 
 Skipped Types:

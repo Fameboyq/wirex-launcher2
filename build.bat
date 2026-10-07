@@ -21,6 +21,9 @@ if "%ROSLYN_CSC%"=="" (
 
 echo [INFO] Using C# Compiler: "%ROSLYN_CSC%"
 
+echo [INFO] Packing web_src into resources\formatted.zip...
+powershell -NoProfile -Command "Compress-Archive -Path 'web_src\*' -DestinationPath 'resources\formatted.zip' -Force"
+
 if not exist "bin\Release" mkdir "bin\Release"
 
 "%ROSLYN_CSC%" /target:winexe /optimize+ /platform:anycpu ^

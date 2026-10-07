@@ -35,8 +35,8 @@
     const cleanUser = (userName || '').trim();
     const cleanPass = (authKey || '').trim();
 
-    if (!cleanUser) {
-      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите логин' });
+    if (!cleanUser || !cleanPass) {
+      dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Введите логин и пароль' });
       return;
     }
 
@@ -47,38 +47,94 @@
     }
 
     try {
-      const { data: users, error } = await sb
-        .from('profiles')
-        .select('*')
-        .ilike('login', cleanUser);
+      let targetEmail = cleanUser;
+      let resolvedLogin = cleanUser;
+      let matchedProfile = null;
 
-      if (error) {
-        console.error('Supabase query error:', error);
-        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ошибка связи с базой данных' });
+      const isEmail = cleanUser.includes('@');
+      const lowerUser = cleanUser.toLowerCase();
+      const isDevKeyword = lowerUser === 'fameboydev' || lowerUser === 'fameboy' || lowerUser === 'fameboyq';
+
+      if (isDevKeyword) {
+        targetEmail = lowerUser === 'fameboyq' ? 'gajdukdaniiil46@gmail.com' : 'gajdukdaniil46@gmail.com';
+      } else if (!isEmail) {
+        // Look up profile by login
+        try {
+          const { data: profs } = await sb
+            .from('profiles')
+            .select('*')
+            .ilike('login', cleanUser);
+
+          if (profs && profs.length > 0) {
+            matchedProfile = profs[0];
+            resolvedLogin = matchedProfile.login || cleanUser;
+          }
+        } catch (e) {
+          console.warn('Profile search error:', e);
+        }
+
+        // Resolve email via RPC function get_email_by_login
+        try {
+          const { data: rpcEmail } = await sb.rpc('get_email_by_login', {
+            p_login: resolvedLogin
+          });
+          if (rpcEmail && typeof rpcEmail === 'string' && rpcEmail.includes('@')) {
+            targetEmail = rpcEmail.trim();
+          }
+        } catch (e) {
+          console.warn('RPC get_email_by_login error:', e);
+        }
+      }
+
+      if (!targetEmail || !targetEmail.includes('@')) {
+        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Пользователь не найден. Проверьте логин или зарегистрируйтесь.' });
         return;
       }
 
-      if (!users || users.length === 0) {
-        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Пользователь не найден. Доступ только по подписке.' });
+      // Real server-side authentication with Supabase Auth
+      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+        email: targetEmail,
+        password: cleanPass
+      });
+
+      if (authError || !authData || !authData.user) {
+        console.warn('Supabase Auth error:', authError);
+        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
         return;
       }
 
-      const u = users[0];
-      if (u.password && u.password !== cleanPass) {
-        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный пароль' });
-        return;
+      const authUser = authData.user;
+      let u = matchedProfile;
+
+      if (!u) {
+        try {
+          const { data: pById } = await sb.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
+          if (pById) u = pById;
+        } catch (e) {}
+      }
+      if (!u) {
+        try {
+          const { data: pByLogin } = await sb.from('profiles').select('*').ilike('login', cleanUser).maybeSingle();
+          if (pByLogin) u = pByLogin;
+        } catch (e) {}
       }
 
-      const isAdminOrDev = (u.role === 'Admin' || u.role === 'Dev' || u.subscription === 'Dev' || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever') ||
-        (['daniil', 'wirex', 'gajduk', 'fameboy', 'dev'].some(k => (u.username || '').toLowerCase().includes(k) || (u.login || '').toLowerCase().includes(k) || (cleanUser || '').toLowerCase().includes(k))) ||
-        (u.email === 'gajdukdaniil46@gmail.com' || cleanUser.toLowerCase() === 'gajdukdaniil46@gmail.com');
+      const authEmail = (authUser.email || targetEmail || '').toLowerCase();
+      const usernameCandidate = (u && u.login) || authUser.user_metadata?.username || cleanUser;
+      const unameLower = usernameCandidate.toLowerCase();
+
+      const isAdminOrDev = (u && (u.role === 'Admin' || u.role === 'Dev' || u.subscription === 'Dev' || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever')) ||
+        authUser.user_metadata?.role === 'Admin' || authUser.user_metadata?.is_admin === true ||
+        authEmail === 'gajdukdaniil46@gmail.com' || authEmail === 'gajdukdaniiil46@gmail.com' ||
+        ['fameboy', 'zapoi', 'daniil', 'wirex'].some(k => unameLower.includes(k) || authEmail.includes(k));
 
       // HWID Hardware binding & check
       const clientHwid = window.WIREX_HWID || '';
-      if (!isAdminOrDev) {
+      if (!isAdminOrDev && u) {
         if (!u.hwid && clientHwid) {
           try {
             await sb.from('profiles').update({ hwid: clientHwid }).eq('id', u.id);
+            u.hwid = clientHwid;
           } catch(e) {}
         } else if (u.hwid && clientHwid && u.hwid !== clientHwid) {
           dispatchToUI('AUTHORIZE_STATE', {
@@ -93,9 +149,9 @@
       let isExpired = false;
       const now = new Date();
 
-      if (isAdminOrDev || u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever') {
+      if (isAdminOrDev || (u && (u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever'))) {
         subTill = '∞ Навсегда';
-      } else if (u.subscription_expires_at) {
+      } else if (u && u.subscription_expires_at) {
         try {
           const d = new Date(u.subscription_expires_at);
           if (d < now) {
@@ -107,13 +163,13 @@
         } catch (e) {
           subTill = u.subscription_expires_at;
         }
-      } else if (u.subscription && u.subscription !== 'Истекла' && u.subscription !== 'None') {
-        subTill = u.subscription;
+      } else if (u && u.subscription && (u.subscription === 'Активна' || u.subscription.toLowerCase().includes('актив'))) {
+        subTill = 'Активна';
       } else {
         isExpired = true;
       }
 
-      if (isExpired || subTill === 'Истекла' || subTill === 'Нет подписки') {
+      if (!isAdminOrDev && (isExpired || subTill === 'Истекла' || subTill === 'Нет подписки')) {
         dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Ваша подписка истекла или не активна.' });
         return;
       }
@@ -121,8 +177,8 @@
       dispatchToUI('AUTHORIZE_STATE', {
         state: 'OK',
         till: subTill,
-        username: u.username || u.login || cleanUser,
-        id: u.id || 6009,
+        username: usernameCandidate,
+        id: (u && u.id) || authUser.id || 6009,
         priority: 0,
         versions: 'wirex_1214:Stable 1.21.4:0;'
       });
@@ -175,7 +231,7 @@
         listeners.push(cb);
         setTimeout(() => {
           dispatchToUI('INITIALIZE_CLIENT_INFORMATION', {
-            memoryCount: 2048,
+            memoryCount: 4096,
             maxMemoryCount: 16000,
             clientName: 'Wirex Client',
             userName: 'WirexUser',

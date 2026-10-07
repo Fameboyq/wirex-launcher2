@@ -12,8 +12,15 @@
       console.error("Launcher JS Error:", msg, url, line, error);
     };
   </script>
-  <!-- Supabase JS Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase JS Client (Local + CDN fallback) -->
+  <script src="supabase.js"></script>
+  <script>
+    if (typeof supabase === 'undefined') {
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      document.head.appendChild(sc);
+    }
+  </script>
   <!-- WebView2 Stub API -->
   <script src="webview_stub.js"></script>
   <!-- Application Styles -->
