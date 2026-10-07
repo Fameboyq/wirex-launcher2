@@ -49,11 +49,32 @@
     try {
       let targetEmail = null;
       let matchedProfile = null;
+      let authUser = null;
+      let isDev = false;
       const lowerUser = cleanUser.toLowerCase();
 
-      // Only Idris has Dev: FameboyDev -> gajdukdaniil46@gmail.com
-      if (lowerUser === 'fameboydev') {
-        targetEmail = 'gajdukdaniil46@gmail.com';
+      // Only Idris has Dev: FameboyDev (tested against both gajduk emails)
+      if (lowerUser === 'fameboydev' || lowerUser === 'gajdukdaniil46@gmail.com' || lowerUser === 'gajdukdaniiil46@gmail.com') {
+        const devCandidateEmails = ['gajdukdaniiil46@gmail.com', 'gajdukdaniil46@gmail.com'];
+        for (const cand of devCandidateEmails) {
+          try {
+            const { data: aData } = await sb.auth.signInWithPassword({
+              email: cand,
+              password: cleanPass
+            });
+            if (aData && aData.user) {
+              authUser = aData.user;
+              targetEmail = cand;
+              isDev = true;
+              break;
+            }
+          } catch (e) {}
+        }
+
+        if (!authUser) {
+          dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
+          return;
+        }
       } else if (cleanUser.includes('@')) {
         targetEmail = cleanUser;
       } else {
@@ -84,31 +105,31 @@
         }
       }
 
-      if (!targetEmail || !targetEmail.includes('@')) {
-        dispatchToUI('AUTHORIZE_STATE', {
-          state: 'ERROR',
-          message: 'Пользователь не найден. Проверьте правильность логина.'
+      if (!authUser) {
+        if (!targetEmail || !targetEmail.includes('@')) {
+          dispatchToUI('AUTHORIZE_STATE', {
+            state: 'ERROR',
+            message: 'Пользователь не найден. Проверьте правильность логина.'
+          });
+          return;
+        }
+
+        // Strict Supabase Auth check for regular users
+        const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+          email: targetEmail,
+          password: cleanPass
         });
-        return;
+
+        if (authError || !authData || !authData.user) {
+          console.warn('Supabase Auth error:', authError);
+          dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
+          return;
+        }
+
+        authUser = authData.user;
+        const authEmail = (authUser.email || targetEmail).toLowerCase();
+        isDev = (authEmail === 'gajdukdaniil46@gmail.com' || authEmail === 'gajdukdaniiil46@gmail.com');
       }
-
-      // Strict Supabase Auth check
-      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
-        email: targetEmail,
-        password: cleanPass
-      });
-
-      if (authError || !authData || !authData.user) {
-        console.warn('Supabase Auth error:', authError);
-        dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
-        return;
-      }
-
-      const authUser = authData.user;
-      const authEmail = (authUser.email || targetEmail).toLowerCase();
-
-      // STRICT DEV CHECK: ONLY gajdukdaniil46@gmail.com is Dev!
-      const isDev = (authEmail === 'gajdukdaniil46@gmail.com');
 
       // Fetch profile
       let u = matchedProfile;
@@ -183,20 +204,9 @@
   }
 
   function handleStartClient(payload) {
-    const steps = [
-      { pct: 15, txt: 'Проверка папки C:\\WirexClient...' },
-      { pct: 40, txt: 'Загрузка библиотек 1.21.4...' },
-      { pct: 75, txt: 'Инициализация Wirex Client...' },
-      { pct: 100, txt: 'Запуск клиента 1.21.4...' }
-    ];
-
-    steps.forEach((step, idx) => {
-      setTimeout(() => {
-        dispatchToUI('CHANGE_LOADER_TEXT_WITH_PERCENT', {
-          status: step.txt,
-          percent: step.pct
-        });
-      }, (idx + 1) * 450);
+    dispatchToUI('CHANGE_LOADER_TEXT_WITH_PERCENT', {
+      status: 'Инициализация запуска клиента...',
+      percent: 5
     });
   }
 

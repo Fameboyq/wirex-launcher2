@@ -251,11 +251,35 @@ namespace WirexClientLauncher
 
         private void SafeExtractZip(string zipPath, string destDir)
         {
+            try
+            {
+                foreach (var proc in Process.GetProcessesByName("javaw"))
+                {
+                    try
+                    {
+                        string mainMod = proc.MainModule != null ? proc.MainModule.FileName : "";
+                        if (mainMod.IndexOf("WirexClient", StringComparison.OrdinalIgnoreCase) >= 0)
+                            proc.Kill();
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
             Directory.CreateDirectory(destDir);
             using (ZipArchive archive = ZipFile.OpenRead(zipPath))
             {
+                int count = archive.Entries.Count;
+                int current = 0;
                 foreach (ZipArchiveEntry entry in archive.Entries)
                 {
+                    current++;
+                    if (current % 100 == 0 || current == count)
+                    {
+                        int extractPct = 86 + (int)((current / (double)count) * 10);
+                        SendUiProgress($"Распаковка: {current}/{count} файлов...", extractPct);
+                    }
+
                     if (string.IsNullOrEmpty(entry.Name) || entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
                     {
                         string subDir = Path.Combine(destDir, entry.FullName);
@@ -427,19 +451,139 @@ namespace WirexClientLauncher
             return "javaw.exe";
         }
 
-        private void EnsureClientFiles(string clientDir)
+        public class TimeoutWebClient : WebClient
+        {
+            private int timeout;
+            public TimeoutWebClient(int timeoutMs = 1800000)
+            {
+                this.timeout = timeoutMs;
+            }
+
+            protected override WebRequest GetWebRequest(Uri uri)
+            {
+                WebRequest w = base.GetWebRequest(uri);
+                w.Timeout = timeout;
+                if (w is HttpWebRequest hw)
+                {
+                    hw.ReadWriteTimeout = timeout;
+                    hw.AllowAutoRedirect = true;
+                    hw.MaximumAutomaticRedirections = 10;
+                }
+                return w;
+            }
+        }
+
+        private bool DownloadFileWithResume(string url, string dlZip)
+        {
+            const int maxRetries = 5;
+            int attempt = 0;
+            long expectedTotal = 848457399;
+
+            while (attempt < maxRetries)
+            {
+                attempt++;
+                try
+                {
+                    InitSecurityProtocol();
+
+                    long existingBytes = 0;
+                    if (File.Exists(dlZip))
+                    {
+                        existingBytes = new FileInfo(dlZip).Length;
+                        if (existingBytes >= expectedTotal)
+                        {
+                            return true;
+                        }
+                    }
+
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                    req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+                    req.Timeout = 60000;
+                    req.ReadWriteTimeout = 120000;
+                    req.AllowAutoRedirect = true;
+                    req.MaximumAutomaticRedirections = 10;
+
+                    if (existingBytes > 0)
+                    {
+                        req.AddRange(existingBytes);
+                    }
+
+                    using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
+                    {
+                        bool isPartial = (resp.StatusCode == HttpStatusCode.PartialContent);
+                        long totalBytes = resp.ContentLength;
+
+                        if (isPartial)
+                        {
+                            totalBytes += existingBytes;
+                        }
+                        else
+                        {
+                            existingBytes = 0;
+                        }
+
+                        if (totalBytes <= 0) totalBytes = expectedTotal;
+
+                        FileMode mode = (isPartial && existingBytes > 0) ? FileMode.Append : FileMode.Create;
+                        using (FileStream fs = new FileStream(dlZip, mode, FileAccess.Write, FileShare.None))
+                        using (Stream s = resp.GetResponseStream())
+                        {
+                            byte[] buffer = new byte[65536];
+                            int read;
+                            long lastUpdate = DateTime.UtcNow.Ticks;
+
+                            while ((read = s.Read(buffer, 0, buffer.Length)) > 0)
+                            {
+                                fs.Write(buffer, 0, read);
+                                existingBytes += read;
+
+                                long nowTicks = DateTime.UtcNow.Ticks;
+                                if (nowTicks - lastUpdate > 2500000) // 250 ms
+                                {
+                                    lastUpdate = nowTicks;
+                                    long mbRec = existingBytes / (1024 * 1024);
+                                    long mbTot = totalBytes / (1024 * 1024);
+                                    int pct = (int)Math.Min(99, (existingBytes * 100) / totalBytes);
+                                    int uiPct = 15 + (int)(pct * 0.70);
+                                    SendUiProgress($"Загрузка клиента: {mbRec} МБ / {mbTot} МБ ({pct}%)...", uiPct);
+                                }
+                            }
+                        }
+                    }
+
+                    if (File.Exists(dlZip) && new FileInfo(dlZip).Length > 800000000)
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Download attempt {attempt} failed: {ex.Message}");
+                    SendUiProgress($"Сбой сети. Повтор попытки ({attempt}/{maxRetries})...", 15);
+                    Thread.Sleep(2000);
+                }
+            }
+
+            return (File.Exists(dlZip) && new FileInfo(dlZip).Length > 800000000);
+        }
+
+        private bool EnsureClientFiles(string clientDir)
         {
             Directory.CreateDirectory(clientDir);
-            string modsDir = Path.Combine(clientDir, "mods");
-            Directory.CreateDirectory(modsDir);
-
             string classpathFile = Path.Combine(clientDir, "classpath.txt");
-            string clientJar = Path.Combine(modsDir, "wirex-1.0-beta.jar");
-            string clientJarAlt = Path.Combine(modsDir, "Wirex-client.jar");
+            string clientJar = Path.Combine(clientDir, "client.jar");
+            string javawExe = Path.Combine(clientDir, @"runtime\jre-25\bin\javaw.exe");
+
+            if (File.Exists(classpathFile) && File.Exists(clientJar) && File.Exists(javawExe))
+            {
+                SendUiProgress("Файлы клиента проверены.", 40);
+                return true;
+            }
 
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             string[] localZips = new string[]
             {
+                Path.Combine(clientDir, "WirexClient.zip"),
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WirexClient.zip"),
                 Path.Combine(userProfile, @"Downloads\WirexClient.zip"),
                 @"C:\Users\kanad\Downloads\WirexClient.zip"
@@ -449,58 +593,53 @@ namespace WirexClientLauncher
             {
                 if (File.Exists(lz))
                 {
-                    if (!File.Exists(classpathFile) || (!File.Exists(clientJar) && !File.Exists(clientJarAlt)))
+                    try
                     {
-                        SendUiProgress("Распаковка файлов клиента...", 45);
-                        SafeExtractZip(lz, clientDir);
-                    }
-                    return;
-                }
-            }
-
-            if (File.Exists(classpathFile) && (File.Exists(clientJar) || File.Exists(clientJarAlt)))
-                return;
-
-            string[] downloadUrls = new string[]
-            {
-                "https://pub-c405b4b1c36c420c9968dec91a633469.r2.dev/WirexClient.zip",
-                "https://github.com/Fameboyq/wirex-launcher2/releases/download/1.0/WirexClient.zip",
-                "https://github.com/DaniilGaiduk/wirex-launcher2/releases/download/1.0/WirexClient.zip"
-            };
-
-            string dlZip = Path.Combine(Path.GetTempPath(), "WirexClient_Download.zip");
-            if (File.Exists(dlZip)) try { File.Delete(dlZip); } catch { }
-
-            foreach (string url in downloadUrls)
-            {
-                try
-                {
-                    SendUiProgress("Загрузка файлов Wirex...", 50);
-                    InitSecurityProtocol();
-
-                    using (WebClient wc = new WebClient())
-                    {
-                        wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-                        wc.DownloadProgressChanged += (s, e) =>
+                        if (new FileInfo(lz).Length > 800000000)
                         {
-                            SendUiProgress($"Загрузка клиента ({e.ProgressPercentage}%)...", 50 + (int)(e.ProgressPercentage * 0.40));
-                        };
-                        wc.DownloadFileTaskAsync(new Uri(url), dlZip).GetAwaiter().GetResult();
+                            SendUiProgress("Распаковка локального архива WirexClient.zip...", 45);
+                            SafeExtractZip(lz, clientDir);
+                            if (File.Exists(classpathFile) && File.Exists(javawExe)) return true;
+                        }
                     }
-
-                    if (File.Exists(dlZip) && new FileInfo(dlZip).Length > 1000000)
-                    {
-                        SendUiProgress("Распаковка файлов клиента...", 92);
-                        SafeExtractZip(dlZip, clientDir);
-                        try { File.Delete(dlZip); } catch { }
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine("Client download error: " + ex.Message);
+                    catch { }
                 }
             }
+
+            string downloadUrl = "https://github.com/Fameboyq/wirex-launcher2/releases/download/1.0/WirexClient.zip";
+            string dlZip = Path.Combine(clientDir, "WirexClient_temp.zip");
+
+            try
+            {
+                SendUiProgress("Подключение к серверу загрузки Wirex...", 15);
+                bool downloaded = DownloadFileWithResume(downloadUrl, dlZip);
+
+                if (downloaded && File.Exists(dlZip))
+                {
+                    SendUiProgress("Распаковка файлов игры (~30-60 сек)...", 86);
+                    SafeExtractZip(dlZip, clientDir);
+                    try { File.Delete(dlZip); } catch { }
+
+                    if (File.Exists(classpathFile))
+                    {
+                        SendUiProgress("Клиент успешно установлен!", 95);
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Client download error: " + ex.Message);
+            }
+
+            if (!File.Exists(classpathFile))
+            {
+                SendUiProgress("Ошибка скачивания файлов клиента.", 0);
+                MessageBox.Show("Не удалось загрузить файлы игры (WirexClient.zip).\nПроверьте подключение к интернету и повторите попытку.", "Wirex Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+
+            return true;
         }
 
         private void LaunchGame(string userName, int ramMb)
@@ -510,17 +649,27 @@ namespace WirexClientLauncher
                 try
                 {
                     string clientDir = @"C:\WirexClient";
-                    SendUiProgress("Проверка Java...", 10);
-                    string javaPath = FindOrDownloadJava(clientDir);
+                    SendUiProgress("Проверка файлов клиента...", 10);
+                    if (!EnsureClientFiles(clientDir))
+                    {
+                        return;
+                    }
 
-                    SendUiProgress("Проверка файлов...", 35);
-                    EnsureClientFiles(clientDir);
+                    SendUiProgress("Проверка Java Runtime...", 90);
+                    string javaPath = FindOrDownloadJava(clientDir);
 
                     string classpathFile = Path.Combine(clientDir, "classpath.txt");
                     string nativesDir = Path.Combine(clientDir, "natives");
                     string assetsDir = Path.Combine(clientDir, "assets");
 
-                    SendUiProgress("Запуск Minecraft 1.21.4...", 96);
+                    if (!File.Exists(classpathFile))
+                    {
+                        SendUiProgress("Ошибка: отсутствует classpath.txt", 0);
+                        MessageBox.Show("Файл classpath.txt не найден в C:\\WirexClient.", "Wirex Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    SendUiProgress("Запуск Minecraft 1.21.4...", 98);
 
                     int finalRam = ramMb >= 2048 ? ramMb : 4096;
                     string user = !string.IsNullOrEmpty(userName) ? userName : "WirexUser";
