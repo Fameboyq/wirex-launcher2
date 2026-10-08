@@ -59,11 +59,14 @@ namespace WirexClientLauncher
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             formattedDir = Path.Combine(baseDir, "formatted");
 
+            string localApp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WirexLauncher", "formatted");
             if (!Directory.Exists(formattedDir) || !File.Exists(Path.Combine(formattedDir, "index.html")))
             {
-                string localApp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WirexLauncher", "formatted");
                 formattedDir = localApp;
+            }
 
+            try
+            {
                 Assembly executingAssembly = Assembly.GetExecutingAssembly();
                 foreach (string resName in executingAssembly.GetManifestResourceNames())
                 {
@@ -85,6 +88,7 @@ namespace WirexClientLauncher
                     }
                 }
             }
+            catch { }
 
             StartLocalServer();
 
@@ -688,7 +692,7 @@ namespace WirexClientLauncher
             return true;
         }
 
-        private void LaunchGame(string userName, int ramMb)
+        private void LaunchGame(string userName, int ramMb, int uid = 777)
         {
             ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -721,9 +725,42 @@ namespace WirexClientLauncher
                     string user = !string.IsNullOrEmpty(userName) ? userName : "WirexUser";
                     string uuid = Guid.NewGuid().ToString("N");
                     string sessionToken = "WIRX-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
+                    int finalUid = uid > 0 ? uid : 777;
+
+                    try
+                    {
+                        string profJson = $"{{\"uid\": {finalUid}, \"seqId\": {finalUid}, \"username\": \"{user}\", \"updated_at\": \"{DateTime.UtcNow:O}\"}}";
+                        File.WriteAllText(Path.Combine(clientDir, "wirex_profile.json"), profJson);
+                        File.WriteAllText(Path.Combine(clientDir, "wirex_uid.txt"), finalUid.ToString());
+                        string wirexDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".wirex");
+                        Directory.CreateDirectory(wirexDir);
+                        File.WriteAllText(Path.Combine(wirexDir, "profile.json"), profJson);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        string srcJar = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Wirex-client.jar");
+                        if (!File.Exists(srcJar))
+                            srcJar = @"C:\Users\kanad\WirexClient_Project\original\Wirex-client.jar";
+                        string destMod1 = Path.Combine(clientDir, @"mods\Wirex-client.jar");
+                        string destMod2 = Path.Combine(clientDir, @"mods\wirex-1.0-beta.jar");
+                        if (File.Exists(srcJar))
+                        {
+                            if (File.Exists(destMod1))
+                            {
+                                try { File.Copy(srcJar, destMod1, true); } catch { }
+                            }
+                            if (File.Exists(destMod2))
+                            {
+                                try { File.Copy(srcJar, destMod2, true); } catch { }
+                            }
+                        }
+                    }
+                    catch { }
 
                     string args = string.Format(
-                        "-Xmx{0}M -Xms1024M -XX:+UseG1GC -XX:+ParallelRefProcEnabled --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED -Dwirex.auth.token={7} \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
+                        "-Xmx{0}M -Xms1024M -XX:+UseG1GC -XX:+ParallelRefProcEnabled --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector,jdk.naming.dns --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED -Dwirex.auth.token={7} -Dwirex.uid={8} -Dwirex.username=\"{4}\" \"-Djava.library.path={1}\" \"-Dfabric.gameDir={2}\" @{3} net.fabricmc.loader.impl.launch.knot.KnotClient --username \"{4}\" --version \"Fabric 1.21.4\" --gameDir \"{2}\" --assetsDir \"{5}\" --assetIndex 19 --uuid {6} --accessToken dummy --userType mojang",
                         finalRam,
                         nativesDir,
                         clientDir,
@@ -731,7 +768,8 @@ namespace WirexClientLauncher
                         user,
                         assetsDir,
                         uuid,
-                        sessionToken
+                        sessionToken,
+                        finalUid
                     );
 
                     ProcessStartInfo psi = new ProcessStartInfo
@@ -761,10 +799,35 @@ namespace WirexClientLauncher
 
         private void CoreWebView2_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
-            string msg = e.WebMessageAsJson;
-            if (string.IsNullOrEmpty(msg)) return;
+            string rawMsg = e.WebMessageAsJson;
+            if (string.IsNullOrEmpty(rawMsg)) return;
 
-            if (msg.Contains("WINDOW_EXIT"))
+            string msg = rawMsg;
+            if (msg.StartsWith("\"") && msg.EndsWith("\"") && msg.Length > 2)
+            {
+                try
+                {
+                    msg = Regex.Unescape(msg.Substring(1, msg.Length - 2));
+                }
+                catch { }
+            }
+
+            if (msg.Contains("BIND_HWID"))
+            {
+                try
+                {
+                    Match mUid = Regex.Match(msg, @"(?:""|\\"")userId(?:""|\\"")\s*:\s*(?:""|\\"")([^""\\]+)");
+                    Match mHwid = Regex.Match(msg, @"(?:""|\\"")hwid(?:""|\\"")\s*:\s*(?:""|\\"")([^""\\]+)");
+                    if (mUid.Success && mHwid.Success)
+                    {
+                        string targetUid = mUid.Groups[1].Value;
+                        string targetHwid = mHwid.Groups[1].Value;
+                        ThreadPool.QueueUserWorkItem(_ => BindHwidInSupabase(targetUid, targetHwid));
+                    }
+                }
+                catch { }
+            }
+            else if (msg.Contains("WINDOW_EXIT"))
             {
                 Dispatcher.Invoke(() => Close());
             }
@@ -789,18 +852,70 @@ namespace WirexClientLauncher
             {
                 string userName = "WirexUser";
                 int ramMb = 2048;
+                int uid = 777;
 
                 try
                 {
-                    Match mUser = Regex.Match(msg, @"""userName""\s*:\s*""([^""]+)""");
+                    Match mUser = Regex.Match(msg, @"(?:""|\\"")userName(?:""|\\"")\s*:\s*(?:""|\\"")([^""\\]+)");
+                    if (!mUser.Success) mUser = Regex.Match(msg, @"""userName""\s*:\s*""([^""]+)""");
                     if (mUser.Success) userName = mUser.Groups[1].Value;
 
-                    Match mRam = Regex.Match(msg, @"""memoryCount""\s*:\s*""?(\d+)""?");
+                    Match mRam = Regex.Match(msg, @"(?:""|\\"")memoryCount(?:""|\\"")\s*:\s*(?:""|\\"")?(\d+)");
+                    if (!mRam.Success) mRam = Regex.Match(msg, @"""memoryCount""\s*:\s*""?(\d+)""?");
                     if (mRam.Success) int.TryParse(mRam.Groups[1].Value, out ramMb);
+
+                    Match mUid = Regex.Match(msg, @"(?:""|\\"")(?:uid|regId|seqId)(?:""|\\"")\s*:\s*(?:""|\\"")?(\d+)");
+                    if (!mUid.Success) mUid = Regex.Match(msg, @"""(?:uid|regId|seqId)""\s*:\s*""?(\d+)""?");
+                    if (mUid.Success) int.TryParse(mUid.Groups[1].Value, out uid);
+                    else
+                    {
+                        Match mId = Regex.Match(msg, @"(?:""|\\"")id(?:""|\\"")\s*:\s*(?:""|\\"")?(\d+)");
+                        if (!mId.Success) mId = Regex.Match(msg, @"""id""\s*:\s*""?(\d+)""?");
+                        if (mId.Success) int.TryParse(mId.Groups[1].Value, out uid);
+                    }
+
+                    Match mUserId = Regex.Match(msg, @"(?:""|\\"")userId(?:""|\\"")\s*:\s*(?:""|\\"")([^""\\]+)");
+                    Match mHwid2 = Regex.Match(msg, @"(?:""|\\"")hwid(?:""|\\"")\s*:\s*(?:""|\\"")([^""\\]+)");
+                    if (mUserId.Success && mHwid2.Success)
+                    {
+                        string targetUid = mUserId.Groups[1].Value;
+                        string targetHwid = mHwid2.Groups[1].Value;
+                        ThreadPool.QueueUserWorkItem(_ => BindHwidInSupabase(targetUid, targetHwid));
+                    }
                 }
                 catch { }
 
-                LaunchGame(userName, ramMb);
+                try
+                {
+                    Directory.CreateDirectory(@"C:\WirexClient");
+                    File.AppendAllText(@"C:\WirexClient\launcher_debug.log", $"[{DateTime.UtcNow:O}] START_CLIENT msg={msg}, user={userName}, ram={ramMb}, uid={uid}\n");
+                }
+                catch { }
+
+                LaunchGame(userName, ramMb, uid);
+            }
+        }
+
+        private static void BindHwidInSupabase(string profileId, string hwid)
+        {
+            if (string.IsNullOrEmpty(profileId) || string.IsNullOrEmpty(hwid)) return;
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    string k = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String("c2Jfc2VjcmV0XzRYNHNOVkxTQW1VRlozTDhtSjhoX2dfblJ2QWZVN2w="));
+                    client.Headers[HttpRequestHeader.ContentType] = "application/json";
+                    client.Headers["apikey"] = k;
+                    client.Headers["Authorization"] = "Bearer " + k;
+                    client.Headers[HttpRequestHeader.UserAgent] = "WirexLauncher/2.0";
+                    string url = $"https://wsuahpdnqstzcoipzymp.supabase.co/rest/v1/profiles?id=eq.{Uri.EscapeDataString(profileId)}";
+                    string json = $"{{\"hwid\":\"{hwid}\"}}";
+                    client.UploadString(new Uri(url), "PATCH", json);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("BindHwidInSupabase failed: " + ex.Message);
             }
         }
 

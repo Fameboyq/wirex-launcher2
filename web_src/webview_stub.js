@@ -70,28 +70,12 @@
       let isDev = false;
       const lowerUser = cleanUser.toLowerCase();
 
-      // Only Idris has Dev: FameboyDev (tested against both gajduk emails)
-      if (lowerUser === 'fameboydev' || lowerUser === 'gajdukdaniil46@gmail.com' || lowerUser === 'gajdukdaniiil46@gmail.com') {
-        const devCandidateEmails = ['gajdukdaniiil46@gmail.com', 'gajdukdaniil46@gmail.com'];
-        for (const cand of devCandidateEmails) {
-          try {
-            const { data: aData } = await sb.auth.signInWithPassword({
-              email: cand,
-              password: cleanPass
-            });
-            if (aData && aData.user) {
-              authUser = aData.user;
-              targetEmail = cand;
-              isDev = true;
-              break;
-            }
-          } catch (e) {}
-        }
-
-        if (!authUser) {
-          dispatchToUI('AUTHORIZE_STATE', { state: 'ERROR', message: 'Неверный логин или пароль' });
-          return;
-        }
+      if (lowerUser === 'fameboydev' || lowerUser === 'gajdukdaniil46@gmail.com') {
+        targetEmail = 'gajdukdaniil46@gmail.com';
+        isDev = true;
+      } else if (lowerUser === 'fameboyq' || lowerUser === 'gajdukdaniiil46@gmail.com') {
+        targetEmail = 'gajdukdaniiil46@gmail.com';
+        isDev = true;
       } else if (cleanUser.includes('@')) {
         targetEmail = cleanUser;
       } else {
@@ -144,27 +128,69 @@
         }
 
         authUser = authData.user;
-        const authEmail = (authUser.email || targetEmail).toLowerCase();
-        isDev = (authEmail === 'gajdukdaniil46@gmail.com' || authEmail === 'gajdukdaniiil46@gmail.com');
+        const authEmail = (authUser.email || targetEmail || '').toLowerCase();
+        const checkUname = (cleanUser || '').toLowerCase();
+        isDev = (
+          authEmail === 'gajdukdaniil46@gmail.com' ||
+          authEmail === 'gajdukdaniiil46@gmail.com' ||
+          authEmail === 'kanadarespect@gmail.com' ||
+          checkUname === 'fameboydev'
+        );
       }
 
       // Fetch profile
       let u = matchedProfile;
-      if (!u) {
+      if (!u && authUser) {
         try {
           const { data: pById } = await sb.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
           if (pById) u = pById;
         } catch (e) {}
       }
 
+      // Calculate sequential registration ID immediately
+      let regSeqNumber = 777;
+      try {
+        const userCreatedAt = (u && u.created_at) || (authUser && authUser.created_at);
+        if (userCreatedAt) {
+          const cRes = await fetch(SB_URL + '/rest/v1/profiles?created_at=lte.' + encodeURIComponent(userCreatedAt) + '&select=id', {
+            headers: {
+              apikey: SB_KEY,
+              Authorization: 'Bearer ' + SB_KEY
+            }
+          });
+          if (cRes.ok) {
+            const arr = await cRes.json();
+            if (Array.isArray(arr) && arr.length > 0) {
+              regSeqNumber = arr.length;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Seq ID calculation error:', e);
+      }
+
+      try {
+        localStorage.setItem('wirex_current_uid', String(regSeqNumber));
+      } catch (e) {}
+
       // HWID check
       const clientHwid = window.WIREX_HWID || '';
       if (u) {
+        try {
+          localStorage.setItem('wirex_current_user_id', String(u.id));
+        } catch (e) {}
+
         if (!u.hwid && clientHwid) {
-          try {
-            await sb.from('profiles').update({ hwid: clientHwid }).eq('id', u.id);
-            u.hwid = clientHwid;
-          } catch(e) {}
+          if (nativePostMessage) {
+            try {
+              nativePostMessage(JSON.stringify({
+                action: 'BIND_HWID',
+                userId: u.id,
+                hwid: clientHwid
+              }));
+            } catch (e) {}
+          }
+          u.hwid = clientHwid;
         } else if (!isDev && u.hwid && clientHwid && u.hwid !== clientHwid) {
           dispatchToUI('AUTHORIZE_STATE', {
             state: 'ERROR',
@@ -209,8 +235,9 @@
       dispatchToUI('AUTHORIZE_STATE', {
         state: 'OK',
         till: subTill,
-        username: isDev ? 'FameboyDev' : ((u && u.login) || authUser.user_metadata?.username || cleanUser),
-        id: (u && u.id) || authUser.id || 6009,
+        username: ((u && u.login) || cleanUser),
+        id: regSeqNumber,
+        uid: regSeqNumber,
         priority: isDev ? 1 : 0,
         versions: 'wirex_1214:Stable 1.21.4:0;'
       });
@@ -233,9 +260,28 @@
       try {
         const m = typeof raw === 'string' ? JSON.parse(raw) : raw;
         
+        // Ensure UID and HWID are forwarded to native C#
+        if (m && m.action === 'START_CLIENT') {
+          try {
+            const savedUid = localStorage.getItem('wirex_current_uid');
+            if (savedUid && savedUid !== '777') {
+              m.uid = savedUid;
+              m.id = savedUid;
+            }
+            const savedUserId = localStorage.getItem('wirex_current_user_id');
+            if (savedUserId) {
+              m.userId = savedUserId;
+            }
+            const currentHwid = window.WIREX_HWID || '';
+            if (currentHwid) {
+              m.hwid = currentHwid;
+            }
+          } catch(e) {}
+        }
+
         // Forward native messages to C# if available
         if (nativePostMessage) {
-          try { nativePostMessage(typeof raw === 'string' ? raw : JSON.stringify(raw)); } catch(e) {}
+          try { nativePostMessage(typeof raw === 'string' ? JSON.stringify(m) : raw); } catch(e) {}
         }
 
         if (m.action === 'AUTHORIZE_USER') {

@@ -95,10 +95,12 @@ class LauncherController {
   static startClient = async () => {
     this.setPreLoaderText("Please wait...", 0);
     const resolvedUser = LauncherController.user?.username || LauncherController.userName || "WirexUser";
+    const resolvedUid = LauncherController.user?.uid || LauncherController.user?.id || (window.localStorage ? localStorage.getItem('wirex_current_uid') : null) || 777;
     const payload = {
       memoryCount: String(LauncherController.ram),
       userName: String(resolvedUser),
-      id: String(LauncherController.starterInformation.id)
+      uid: String(resolvedUid),
+      id: String(resolvedUid)
     };
     LauncherController.sendActionMessage("START_CLIENT", payload);
   };
