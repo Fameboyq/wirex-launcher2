@@ -205,25 +205,31 @@
       let isExpired = false;
       const now = new Date();
 
+      const rawSub = ((u && u.subscription) || '').trim();
+      const subLower = rawSub.toLowerCase();
+      const isExplicitInactive = !rawSub || subLower === 'неактивна' || subLower === 'inactive' || subLower === 'none' || subLower === 'нет' || subLower.startsWith('не');
+
       if (isDev) {
         subTill = '∞ Навсегда';
-      } else if (u && (u.subscription === 'Lifetime' || u.subscription === 'Навсегда' || u.subscription === 'forever')) {
+      } else if (!isExplicitInactive && (subLower === 'lifetime' || subLower === 'навсегда' || subLower === 'forever')) {
         subTill = '∞ Навсегда';
-      } else if (u && u.subscription_expires_at) {
+      } else if (!isExplicitInactive && u && u.subscription_expires_at) {
         try {
           const d = new Date(u.subscription_expires_at);
-          if (d < now) {
+          if (isNaN(d.getTime()) || d < now) {
             subTill = 'Истекла';
             isExpired = true;
           } else {
             subTill = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
           }
         } catch (e) {
-          subTill = u.subscription_expires_at;
+          subTill = 'Истекла';
+          isExpired = true;
         }
-      } else if (u && u.subscription && (u.subscription === 'Активна' || u.subscription.toLowerCase().includes('актив'))) {
+      } else if (!isExplicitInactive && (subLower === 'активна' || subLower === 'active')) {
         subTill = 'Активна';
       } else {
+        subTill = 'Нет подписки';
         isExpired = true;
       }
 
