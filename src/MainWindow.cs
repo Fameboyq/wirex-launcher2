@@ -745,30 +745,42 @@ namespace WirexClientLauncher
 
                     try
                     {
-                        string srcJar = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Wirex-client.jar");
-                        if (!File.Exists(srcJar))
-                            srcJar = @"C:\Users\kanad\WirexClient_Project\original\Wirex-client.jar";
-                        string destMod1 = Path.Combine(clientDir, @"mods\Wirex-client.jar");
-                        string destMod2 = Path.Combine(clientDir, @"mods\wirex-1.0-beta.jar");
-                        if (File.Exists(srcJar))
+                        string modsDir = Path.Combine(clientDir, "mods");
+                        Directory.CreateDirectory(modsDir);
+
+                        string sodiumMod = Path.Combine(modsDir, "sodium-fabric-0.6.13-mc1.21.4.jar");
+                        if (!File.Exists(sodiumMod) || new FileInfo(sodiumMod).Length < 1000000)
                         {
-                            if (File.Exists(destMod1))
+                            string localSodium = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sodium-fabric-0.6.13-mc1.21.4.jar");
+                            if (File.Exists(localSodium))
                             {
-                                try { File.Copy(srcJar, destMod1, true); } catch { }
+                                try { File.Copy(localSodium, sodiumMod, true); } catch { }
                             }
-                            if (File.Exists(destMod2))
+                            else
                             {
-                                try { File.Copy(srcJar, destMod2, true); } catch { }
+                                SendUiProgress("Загрузка оптимизации Sodium...", 91);
+                                try
+                                {
+                                    using (var wc = new TimeoutWebClient(30000))
+                                    {
+                                        wc.Headers[HttpRequestHeader.UserAgent] = "WirexLauncher/2.0";
+                                        wc.DownloadFile("https://raw.githubusercontent.com/Fameboyq/wirex-launcher2/main/sodium-fabric-0.6.13-mc1.21.4.jar", sodiumMod);
+                                    }
+                                }
+                                catch { }
                             }
                         }
 
-                        string srcSodium = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sodium-fabric-0.6.13-mc1.21.4.jar");
-                        if (!File.Exists(srcSodium))
-                            srcSodium = @"C:\Users\kanad\Downloads\sodium-fabric-0.6.13-mc1.21.4.jar";
-                        if (File.Exists(srcSodium))
+                        string destMod1 = Path.Combine(modsDir, "Wirex-client.jar");
+                        string destMod2 = Path.Combine(modsDir, "wirex-1.0-beta.jar");
+                        string localJar = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Wirex-client.jar");
+                        if (!File.Exists(localJar))
+                            localJar = @"C:\Users\kanad\WirexClient_Project\original\Wirex-client.jar";
+
+                        if (File.Exists(localJar))
                         {
-                            string destSodium = Path.Combine(clientDir, @"mods\sodium-fabric-0.6.13-mc1.21.4.jar");
-                            try { File.Copy(srcSodium, destSodium, true); } catch { }
+                            try { File.Copy(localJar, destMod1, true); } catch { }
+                            try { File.Copy(localJar, destMod2, true); } catch { }
                         }
                     }
                     catch { }
