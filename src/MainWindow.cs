@@ -187,12 +187,17 @@ namespace WirexClientLauncher
             try
             {
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WirexLauncher_WV2");
-                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                var options = new CoreWebView2EnvironmentOptions();
+                options.AdditionalBrowserArguments = "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-gpu-driver-bug-workarounds --enable-features=VaapiVideoDecoder,CanvasOopif --disable-background-timer-throttling --disable-renderer-backgrounding --in-process-gpu --force-gpu-rasterization";
+                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                 await webView.EnsureCoreWebView2Async(env);
 
                 webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                webView.CoreWebView2.Settings.IsBuiltInErrorPageEnabled = false;
+                webView.CoreWebView2.Settings.IsPinchZoomEnabled = false;
+                webView.CoreWebView2.Settings.IsSwipeNavigationEnabled = false;
 
                 webView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
                 webView.CoreWebView2.NavigationCompleted += (s, args) =>
@@ -755,6 +760,15 @@ namespace WirexClientLauncher
                             {
                                 try { File.Copy(srcJar, destMod2, true); } catch { }
                             }
+                        }
+
+                        string srcSodium = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sodium-fabric-0.6.13-mc1.21.4.jar");
+                        if (!File.Exists(srcSodium))
+                            srcSodium = @"C:\Users\kanad\Downloads\sodium-fabric-0.6.13-mc1.21.4.jar";
+                        if (File.Exists(srcSodium))
+                        {
+                            string destSodium = Path.Combine(clientDir, @"mods\sodium-fabric-0.6.13-mc1.21.4.jar");
+                            try { File.Copy(srcSodium, destSodium, true); } catch { }
                         }
                     }
                     catch { }

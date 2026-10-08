@@ -19,6 +19,10 @@ body {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
   overflow: hidden !important;
   position: relative !important;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 ._background_183py_1 {
   position: absolute !important;
@@ -2159,15 +2163,14 @@ button[type="submit"]:active, ._button_1483h_1:active {
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(4, 4, 6, 0.88) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  background: rgba(4, 4, 6, 0.94) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   z-index: 9999999 !important;
   pointer-events: auto !important;
-  animation: fadeIn 0.25s ease-out;
+  animation: fadeIn 0.2s ease-out;
+  transform: translateZ(0);
 }
 
 .launch-modal-card {
