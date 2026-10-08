@@ -157,15 +157,15 @@
         } catch (e) {}
       }
 
-      // HWID check for regular users
+      // HWID check
       const clientHwid = window.WIREX_HWID || '';
-      if (!isDev && u) {
+      if (u) {
         if (!u.hwid && clientHwid) {
           try {
             await sb.from('profiles').update({ hwid: clientHwid }).eq('id', u.id);
             u.hwid = clientHwid;
           } catch(e) {}
-        } else if (u.hwid && clientHwid && u.hwid !== clientHwid) {
+        } else if (!isDev && u.hwid && clientHwid && u.hwid !== clientHwid) {
           dispatchToUI('AUTHORIZE_STATE', {
             state: 'ERROR',
             message: 'Неверный HWID! Аккаунт привязан к другому компьютеру. Сброс через Discord.'
